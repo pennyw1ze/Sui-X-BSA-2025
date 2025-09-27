@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ConnectButton } from "@mysten/dapp-kit";
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
@@ -28,10 +29,50 @@ const showcaseLeaks = [
 ];
 
 function App() {
+  useEffect(() => {
+    const revealables = document.querySelectorAll('[data-reveal="true"]');
+    if (!revealables.length) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.15,
+        rootMargin: '0px 0px -10% 0px',
+      }
+    );
+
+    revealables.forEach((element) => observer.observe(element));
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="app">
       <header className="hero" id="top">
-        <div className="hero__content">
+        <div className="hero__ambient" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="hero__nav" data-reveal="true">
+          <ConnectButton />
+        </div>
+
+        <div className="hero__content" data-reveal="true">
           <img src={logo} alt="Walrus Vault" className="hero__logo" />
           <h1>Walrus Vault</h1>
           <p>
@@ -43,13 +84,10 @@ function App() {
             <a className="cta secondary" href="#leaks">Watch current leaks</a>
           </div>
         </div>
-        <div className="hero__wallet">
-          <ConnectButton />
-        </div>
       </header>
 
       <main>
-        <section id="start" className="section uploader-section">
+        <section id="start" className="section uploader-section" data-reveal="true">
           <div className="section__header">
             <h2>Start leaking now</h2>
             <p>
@@ -60,7 +98,7 @@ function App() {
           <WalrusUploader />
         </section>
 
-        <section id="leaks" className="section leaks-section">
+        <section id="leaks" className="section leaks-section" data-reveal="true">
           <div className="section__header">
             <h2>Watch current leaks</h2>
             <p>
@@ -69,8 +107,13 @@ function App() {
             </p>
           </div>
           <div className="leak-grid">
-            {showcaseLeaks.map((leak) => (
-              <article key={leak.id} className="leak-card">
+            {showcaseLeaks.map((leak, index) => (
+              <article
+                key={leak.id}
+                className="leak-card"
+                data-reveal="true"
+                style={{ transitionDelay: `${index * 80}ms` }}
+              >
                 <div className="leak-card__status" data-status={leak.status}>
                   {leak.status}
                 </div>
