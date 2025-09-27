@@ -4,9 +4,62 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>Walrus Vault</title>
+    <link rel="stylesheet" href="/src/index.css" />
+    <style>
+      .landing {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        text-align: center;
+        padding: 2rem;
+      }
+      .landing h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+      .landing p {
+        max-width: 600px;
+        margin-bottom: 2rem;
+        font-size: 1.2rem;
+        opacity: 0.85;
+      }
+      .landing .buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .landing .buttons a {
+        border-radius: 8px;
+        border: 1px solid transparent;
+        padding: 0.8em 1.6em;
+        font-size: 1em;
+        font-weight: 500;
+        background-color: #1a1a1a;
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+        transition: border-color 0.25s, background-color 0.25s;
+      }
+      .landing .buttons a:hover {
+        border-color: #646cff;
+        background-color: #2a2a2a;
+      }
+    </style>
   </head>
   <body>
+    <div class="landing">
+      <h1>Welcome to Walrus Vault!</h1>
+      <p>The safest way to upload Documents to Sui — basically WikiLeaks on-chain.</p>
+      <div class="buttons">
+        <a href="#app">Open App</a>
+        <a href="#about">About</a>
+      </div>
+    </div>
+
+    <!-- React will mount into this later -->
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
