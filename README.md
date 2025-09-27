@@ -1,4 +1,4 @@
-# Sui-X-BSA-2025
+# Sui-X-BSA-2025 : Walrus Vault
 
 Members:
 
