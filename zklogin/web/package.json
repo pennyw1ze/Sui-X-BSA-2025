@@ -1,0 +1,60 @@
+{
+    "private": true,
+    "version": "0.0.0",
+    "name": "@polymedia/zklogin-demo",
+    "author": "@juzybits (https://polymedia.app)",
+    "homepage": "https://zklogin-demo.polymedia.app",
+    "description": "Sui zkLogin demo implementation",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/juzybits/polymedia-zklogin-demo"
+    },
+    "keywords": [],
+    "scripts": {
+        "build": "tsc && vite build",
+        "build:server": "tsc --project server/tsconfig.json",
+        "deploy-dev": "pnpm build && wrangler pages deploy dist/ --project-name zklogin-demo --branch dev",
+        "deploy-prod": "pnpm build && wrangler pages deploy dist/ --project-name zklogin-demo --branch main",
+        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+        "preview": "pnpm build && vite preview",
+        "dev": "vite",
+        "server": "tsx --watch server/src/server.ts",
+        "start": "concurrently \"pnpm dev\" \"pnpm server\""
+    },
+    "dependencies": {
+        "@mysten/sui.js": "^0.51.2",
+        "@mysten/zklogin": "^0.5.2",
+        "@polymedia/suits": "^0.0.39",
+        "@polymedia/webutils": "^0.0.48",
+        "cors": "^2.8.5",
+        "dotenv": "^16.0.0",
+        "express": "^4.18.2",
+        "google-auth-library": "^9.0.0",
+        "jwt-decode": "^4.0.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.19",
+        "@types/express": "^4.17.17",
+        "@types/node": "^18.16.0",
+        "@types/react": "^18.2.74",
+        "@types/react-dom": "^18.2.24",
+        "@typescript-eslint/eslint-plugin": "^7.5.0",
+        "@typescript-eslint/parser": "^7.5.0",
+        "@vitejs/plugin-react-swc": "^3.6.0",
+        "concurrently": "^8.2.0",
+        "eslint": "^8.57.0",
+        "eslint-plugin-react": "^7.34.1",
+        "eslint-plugin-react-hooks": "^4.6.0",
+        "eslint-plugin-react-refresh": "^0.4.6",
+        "less": "^4.2.0",
+        "ts-node-dev": "^2.0.0",
+        "tsx": "^4.20.6",
+        "typescript": "^5.4.4",
+        "vite": "^5.2.8",
+        "wrangler": "^3.48.0"
+    },
+    "type": "module"
+}
