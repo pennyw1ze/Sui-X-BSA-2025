@@ -22,6 +22,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.json({ filename: req.file.originalname, size: req.file.size });
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
+const host = process.env.HOST || '0.0.0.0';
+app.listen(port, host, () => {
+  console.log(`Server listening on http://${host}:${port}`);
 });
