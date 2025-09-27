@@ -70,14 +70,12 @@ async function tryStoreWithExpiry(filePath) {
   for (const args of attempts) {
     const r = await runWalrus(args);
     if (r.code === 0) return r;
-    // small heuristic: if stderr doesn't complain about missing expiry flag, accept the result (likely different error)
     const stderr = (r.stderr || "").toLowerCase();
     if (!stderr.includes("required arguments") && !stderr.includes("the following required arguments were not provided")) {
       return r;
     }
-    // otherwise continue trying next flag form
   }
-  // return last attempt result if none succeeded
+  // last attempt
   return await runWalrus(attempts[attempts.length - 1]);
 }
 
@@ -147,33 +145,76 @@ app.post("/api/walrus/store", upload.single("file"), async (req, res) => {
     const walletAddress = req.body?.walletAddress || null;
     const signature = req.body?.signature || null;
 
-    // If you want client-side encryption, do it in the frontend, then upload ciphertext here.
+    // Log wallet metadata for debugging
+    console.log("Incoming store request, walletAddress:", walletAddress, "signature present:", !!signature);
+
+    // Write upload to temp file
     const { dir, filePath } = await writeTempFile(req.file.buffer, req.file.originalname || "upload.bin");
 
     // Use helper that tries multiple expiry flag variants
     const r = await tryStoreWithExpiry(filePath);
 
-    // Cleanup
+    // Cleanup temp dir
     try {
       await fs.promises.rm(dir, { recursive: true, force: true });
-    } catch {}
+    } catch (e) {
+      console.warn("Temp cleanup failed:", e);
+    }
 
     if (r.code !== 0) {
       // Return full stderr to help debugging clients
       return res.status(500).json({ error: "walrus store failed", walletAddress, signature, ...r });
     }
 
-    // Parse JSON if available, otherwise regex fallback
+    // Parse JSON if available
     try {
-      const j = JSON.parse(r.stdout);
-      const blobId = j.blob_id || j.blobId || j.id;
+      const j = JSON.parse(r.stdout || "");
+      const blobId = j?.blob_id || j?.blobId || j?.id;
       if (blobId) return res.json({ blobId, raw: j, meta: { walletAddress, signature } });
-    } catch {
-      const m = (r.stdout || "").match(/blob id:\s*([^\s]+)/i) || (r.stdout || "").match(/([A-Za
-      await fs.promises.rm(outDir, { recursive: true, force: true });
-    } catch {}
-  });
-  stream.pipe(res);
+    } catch (e) {
+      // ignore JSON parse errors, try regex fallback below
+    }
+
+    // Regex fallback to extract blob id or similar
+    const stdoutStr = r.stdout || "";
+    const m = stdoutStr.match(/blob id:\s*([^\s]+)/i) || stdoutStr.match(/([A-Za-z0-9_\-]{20,})/);
+    if (m) return res.json({ blobId: m[1], raw: stdoutStr, meta: { walletAddress, signature } });
+
+    return res.status(500).json({
+      error: "could not parse walrus store output",
+      stdout: r.stdout,
+      stderr: r.stderr,
+      meta: { walletAddress, signature },
+    });
+  } catch (err) {
+    console.error("Store handler error:", err);
+    return res.status(500).json({ error: String(err) });
+  }
+});
+
+// ---- Walrus: read (download) ----
+app.get("/api/walrus/read/:id", async (req, res) => {
+  const id = req.params.id;
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "walrus-read-"));
+  const outPath = path.join(outDir, `${id}.bin`);
+  try {
+    const r = await runWalrus(["read", "--blob-id", id, "--output", outPath]);
+    if (r.code !== 0 || !fs.existsSync(outPath)) {
+      try { await fs.promises.rm(outDir, { recursive: true, force: true }); } catch {}
+      return res.status(500).json({ error: "walrus read failed", ...r });
+    }
+
+    res.setHeader("Content-Type", "application/octet-stream");
+    const stream = fs.createReadStream(outPath);
+    stream.on("close", async () => {
+      try { await fs.promises.rm(outDir, { recursive: true, force: true }); } catch {}
+    });
+    stream.pipe(res);
+  } catch (e) {
+    try { await fs.promises.rm(outDir, { recursive: true, force: true }); } catch {}
+    console.error("Read handler error:", e);
+    return res.status(500).json({ error: String(e) });
+  }
 });
 
 // ---- Plain upload (your original endpoint, untouched) ----
