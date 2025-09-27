@@ -75,7 +75,7 @@ class DocAnalyst(BaseAgent):
             {"role": "user", "content": document_text}
         ]
 
-        print("Sending document to Grok for verification...")
+        print("Sending document to LLM for verification...")
         result = self._send_llm_request(messages)
 
         # 2. Post-processing Output
