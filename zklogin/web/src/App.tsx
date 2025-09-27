@@ -52,6 +52,7 @@ type AccountData = {
     sub: string;
     aud: string;
     maxEpoch: number;
+    domain: string;
 }
 
 export const App: React.FC = () =>
@@ -161,11 +162,16 @@ export const App: React.FC = () =>
         window.history.replaceState(null, '', window.location.pathname);
 
         // decode the JWT
-        const jwtPayload = jwtDecode(jwt);
+        const jwtPayload = jwtDecode(jwt) as any; // Cast to any to access email field
         if (!jwtPayload.sub || !jwtPayload.aud) {
             console.warn('[completeZkLogin] missing jwt.sub or jwt.aud');
             return;
         }
+
+        // Extract domain from email
+        const email = jwtPayload.email || '';
+        const domain = email.includes('@') ? email.split('@')[1] : '';
+        console.debug('[completeZkLogin] User email domain:', domain);
 
         // === Get the salt ===
         // https://docs.sui.io/concepts/cryptography/zklogin#user-salt-management
@@ -267,6 +273,7 @@ export const App: React.FC = () =>
             sub: jwtPayload.sub,
             aud: typeof jwtPayload.aud === 'string' ? jwtPayload.aud : jwtPayload.aud[0],
             maxEpoch: setupData.maxEpoch,
+            domain: domain,
         });
     }
 
@@ -399,6 +406,15 @@ export const App: React.FC = () =>
         setBalances(new Map());
     }
 
+    // Debug function to check domains (accessible from browser console as window.checkDomains())
+    (window as any).checkDomains = () => {
+        console.log('Current accounts and their domains:', accounts.current.map(acc => ({
+            provider: acc.provider,
+            domain: acc.domain,
+            userAddr: acc.userAddr
+        })));
+    };
+
     /* HTML */
 
     const openIdProviders: OpenIdProvider[] = isLocalhost()
@@ -449,6 +465,7 @@ export const App: React.FC = () =>
                         </a>
                     </div>
                     <div>User ID: {acct.sub}</div>
+                    <div>Domain: {acct.domain || 'Not available'}</div>
                     <div>Balance: {typeof balance === 'undefined' ? '(loading)' : `${balance} SUI`}</div>
                     <button
                         className={`btn-send ${!balance ? 'disabled' : ''}`}

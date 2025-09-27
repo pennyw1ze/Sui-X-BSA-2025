@@ -1,14 +1,12 @@
 {
     "private": true,
     "version": "0.0.0",
-    "name": "@polymedia/zklogin-demo",
-    "author": "@juzybits (https://polymedia.app)",
-    "homepage": "https://zklogin-demo.polymedia.app",
-    "description": "Sui zkLogin demo implementation",
+    "name": "walrus-vault",
+    "description": "Sui ZKLogin",
     "license": "Apache-2.0",
     "repository": {
         "type": "git",
-        "url": "https://github.com/juzybits/polymedia-zklogin-demo"
+        "url": "https://github.com/SparshTyagi/Sui-X-BSA-2025"
     },
     "keywords": [],
     "scripts": {
