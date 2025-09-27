@@ -73,7 +73,9 @@ function App() {
         </div>
 
         <div className="hero__content" data-reveal="true">
-          <img src={logo} alt="Walrus Vault" className="hero__logo" />
+          <div className="hero__logo-wrapper">
+            <img src={logo} alt="Walrus Vault" className="hero__logo" />
+          </div>
           <h1>Walrus Vault</h1>
           <p>
             Leak responsibly. Store, share, and govern sensitive documents on-chain using Walrus
