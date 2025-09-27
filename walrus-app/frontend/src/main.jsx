@@ -16,14 +16,24 @@ const { networkConfig } = createNetworkConfig({
   testnet: { url: getFullnodeUrl('testnet') },
 });
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-        <WalletProvider autoConnect>
-          <App />
-        </WalletProvider>
-      </SuiClientProvider>
-    </QueryClientProvider>
-  </StrictMode>,
-);
+const rootElement = document.getElementById('root');
+
+if (rootElement) {
+  rootElement.innerHTML = '';
+
+  const root = createRoot(rootElement);
+  root.render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
+          <WalletProvider autoConnect>
+            <App />
+          </WalletProvider>
+        </SuiClientProvider>
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+
+  window.__WALRUS_APP_BOOTSTRAPPED__ = true;
+  window.dispatchEvent(new Event('walrus-app-bootstrapped'));
+}

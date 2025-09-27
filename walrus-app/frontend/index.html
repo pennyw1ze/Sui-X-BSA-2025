@@ -6,75 +6,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Walrus Vault</title>
     <link rel="stylesheet" href="/src/index.css" />
-    <style>
-      .landing {
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        text-align: center;
-        padding: 2rem;
-      }
-      .landing h1 {
-        text-align: center;
-        font-size: 3rem;
-        margin-bottom: 1rem;
-      }
-      .landing p {
-        text-align: center;
-        max-width: 600px;
-        margin-bottom: 2rem;
-        font-size: 1.2rem;
-        opacity: 0.85;
-      }
-      .landing .buttons {
-        text-align: center;
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-      }
-      .landing .buttons a {
-        text-align: center;
-        border-radius: 8px;
-        border: 1px solid transparent;
-        padding: 0.8em 1.6em;
-        font-size: 1em;
-        font-weight: 500;
-        background-color: #1a1a1a;
-        color: white;
-        text-decoration: none;
-        cursor: pointer;
-        transition: border-color 0.25s, background-color 0.25s;
-      }
-      .landing .buttons a:hover {
-        text-align: center;
-        border-color: #646cff; 
-        background-color: #2a2a2a;
-        }
-      /* New style for the logo */
-      .landing__logo {
-        max-width: 250px; /* Adjust as needed */
-        height: auto;
-        margin-bottom: 2rem; /* Space between logo and h1 */
-      }
-    </style>
   </head>
   <body>
-    <div class="landing">
-      <img src="C:\Users\ramie_ckvh54z\Documents\BSA Hackathons\BSA X SUI 2025\Sui-X-BSA-2025\walrus-app\frontend\src\assets\logo.png" alt="Walrus Vault Logo" class="landing__logo" />
-      <h1>Welcome to Walrus Vault!</h1>
-      <p>The safest way to upload Documents to Sui — basically WikiLeaks on-chain.</p>
-      <div class="buttons">
-        <a href="#app">Start leaking now!</a>
-        <a href="#about">Watch current leaks</a>
+    <!-- React will mount into this later -->
+    <div id="root">
+      <div class="no-js-fallback">
+        <div class="no-js-spinner" aria-hidden="true"></div>
+        <p>Launching Walrus Vault...</p>
+        <noscript>Walrus Vault requires JavaScript to be enabled.</noscript>
       </div>
     </div>
+    <script>
+      const removeFallback = () => {
+        const fallback = document.querySelector('.no-js-fallback');
+        if (fallback) {
+          fallback.classList.add('is-hidden');
+          window.setTimeout(() => fallback.remove(), 450);
+        }
+      };
 
+      if (window.__WALRUS_APP_BOOTSTRAPPED__) {
+        removeFallback();
+      } else {
+        window.addEventListener('walrus-app-bootstrapped', removeFallback, {
+          once: true,
+        });
 
-    <!-- React will mount into this later -->
-    <div id="root"></div>
+        window.setTimeout(() => {
+          if (!window.__WALRUS_APP_BOOTSTRAPPED__) {
+            const fallback = document.querySelector('.no-js-fallback');
+            if (fallback) {
+              fallback.innerHTML = `
+                <strong>Still loading?</strong>
+                <p>Run the app with <code>npm run dev</code> or <code>npm run preview</code>,
+                then visit <a href="http://localhost:5173" target="_blank" rel="noreferrer">http://localhost:5173</a>.
+                Opening <code>dist/index.html</code> directly from your file explorer will keep this spinner forever because modern browsers block module loading on the <code>file://</code> protocol.</p>
+              `;
+            }
+          }
+        }, 2000);
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
