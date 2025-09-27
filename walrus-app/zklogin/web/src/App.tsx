@@ -20,7 +20,7 @@ import './App.less';
 
 import config from './config.json'; // copy and modify config.example.json with your own values
 
-const NETWORK: NetworkName = 'devnet';
+const NETWORK: NetworkName = 'testnet';
 const MAX_EPOCH = 2; // keep ephemeral keys active for this many Sui epochs from now (1 epoch ~= 24h)
 
 const suiClient = new SuiClient({
@@ -405,15 +405,6 @@ export const App: React.FC = () =>
         accounts.current = [];
         setBalances(new Map());
     }
-
-    // Debug function to check domains (accessible from browser console as window.checkDomains())
-    (window as any).checkDomains = () => {
-        console.log('Current accounts and their domains:', accounts.current.map(acc => ({
-            provider: acc.provider,
-            domain: acc.domain,
-            userAddr: acc.userAddr
-        })));
-    };
 
     /* HTML */
 
