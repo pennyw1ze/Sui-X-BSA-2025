@@ -36,6 +36,9 @@ const WALRUS_BIN =
 const WALRUS_CONFIG = process.env.WALRUS_CONFIG || ""; // e.g. C:\Users\<you>\.walrus\client_config.yaml
 const WALRUS_WALLET = process.env.WALRUS_WALLET || ""; // e.g. C:\Users\<you>\.sui\sui_config\client.yaml
 
+// Add default store expiry/epochs (can be overridden via env)
+const WALRUS_STORE_EPOCHS = process.env.WALRUS_STORE_EPOCHS || "1";
+
 function walrusArgs(extra) {
   const out = [...extra];
   if (WALRUS_CONFIG) out.push("--config", WALRUS_CONFIG);
@@ -52,6 +55,30 @@ function runWalrus(args) {
     p.stderr.on("data", (d) => (stderr += d.toString()));
     p.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
   });
+}
+
+// New helper: try different expiry flag names for store
+async function tryStoreWithExpiry(filePath) {
+  const attempts = [
+    ["store", "--json", "--epochs", String(WALRUS_STORE_EPOCHS), filePath],
+    ["store", "--json", "--earliest-expiry-time", String(WALRUS_STORE_EPOCHS), filePath],
+    ["store", "--json", "--end-epoch", String(WALRUS_STORE_EPOCHS), filePath],
+    // fallback: store without explicit expiry (last resort)
+    ["store", "--json", filePath],
+  ];
+
+  for (const args of attempts) {
+    const r = await runWalrus(args);
+    if (r.code === 0) return r;
+    // small heuristic: if stderr doesn't complain about missing expiry flag, accept the result (likely different error)
+    const stderr = (r.stderr || "").toLowerCase();
+    if (!stderr.includes("required arguments") && !stderr.includes("the following required arguments were not provided")) {
+      return r;
+    }
+    // otherwise continue trying next flag form
+  }
+  // return last attempt result if none succeeded
+  return await runWalrus(attempts[attempts.length - 1]);
 }
 
 // Small helper: write an in-memory upload to a temporary file
@@ -123,15 +150,18 @@ app.post("/api/walrus/store", upload.single("file"), async (req, res) => {
     // If you want client-side encryption, do it in the frontend, then upload ciphertext here.
     const { dir, filePath } = await writeTempFile(req.file.buffer, req.file.originalname || "upload.bin");
 
-    // FIX: walrus store expects file paths as positional arguments, not "--file"
-    const r = await runWalrus(["store", "--json", filePath]);
+    // Use helper that tries multiple expiry flag variants
+    const r = await tryStoreWithExpiry(filePath);
 
     // Cleanup
     try {
       await fs.promises.rm(dir, { recursive: true, force: true });
     } catch {}
 
-    if (r.code !== 0) return res.status(500).json({ error: "walrus store failed", walletAddress, signature, ...r });
+    if (r.code !== 0) {
+      // Return full stderr to help debugging clients
+      return res.status(500).json({ error: "walrus store failed", walletAddress, signature, ...r });
+    }
 
     // Parse JSON if available, otherwise regex fallback
     try {
@@ -139,33 +169,7 @@ app.post("/api/walrus/store", upload.single("file"), async (req, res) => {
       const blobId = j.blob_id || j.blobId || j.id;
       if (blobId) return res.json({ blobId, raw: j, meta: { walletAddress, signature } });
     } catch {
-      const m = r.stdout.match(/blob id:\s*([^\s]+)/i) || r.stdout.match(/([A-Za-z0-9_\-]{20,})/);
-      if (m) return res.json({ blobId: m[1], raw: r.stdout, meta: { walletAddress, signature } });
-    }
-    return res.status(500).json({ error: "could not parse walrus store output", stdout: r.stdout, stderr: r.stderr, meta: { walletAddress, signature } });
-  } catch (err) {
-    return res.status(500).json({ error: String(err) });
-  }
-});
-
-// ---- Walrus: read (download) ----
-app.get("/api/walrus/read/:id", async (req, res) => {
-  const id = req.params.id;
-  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "walrus-read-"));
-  const outPath = path.join(outDir, `${id}.bin`);
-  const r = await runWalrus(["read", "--blob-id", id, "--output", outPath]);
-
-  if (r.code !== 0 || !fs.existsSync(outPath)) {
-    try {
-      await fs.promises.rm(outDir, { recursive: true, force: true });
-    } catch {}
-    return res.status(500).json({ error: "walrus read failed", ...r });
-  }
-
-  res.setHeader("Content-Type", "application/octet-stream");
-  const stream = fs.createReadStream(outPath);
-  stream.on("close", async () => {
-    try {
+      const m = (r.stdout || "").match(/blob id:\s*([^\s]+)/i) || (r.stdout || "").match(/([A-Za
       await fs.promises.rm(outDir, { recursive: true, force: true });
     } catch {}
   });

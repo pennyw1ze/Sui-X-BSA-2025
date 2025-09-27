@@ -10,30 +10,69 @@ function updateWalletUI() {
 }
 
 async function connectWallet() {
-  out("Connecting wallet...");
+  out("Connecting Slush wallet...");
   try {
-    // Try Sui provider first
-    if (window.sui && typeof window.sui.connect === "function") {
-      // many Sui wallets return an array or object; try common shapes
-      const r = await window.sui.connect();
-      let addr = null;
-      if (Array.isArray(r) && r.length) addr = r[0]?.address || r[0];
-      if (!addr && r && typeof r === "object") {
-        addr = r?.address || r?.account?.address || r?.accounts?.[0]?.address;
+    // If there's no window.sui at all, bail early
+    if (!window.sui) {
+      out("No Sui provider detected on window (window.sui not present). Please install Slush.");
+      alert("No Slush Sui wallet found in the browser.");
+      updateWalletUI();
+      return;
+    }
+
+    // Best-effort: try to connect and read addresses/accounts from multiple shapes
+    let connectResult = null;
+    try {
+      if (typeof window.sui.connect === "function") {
+        connectResult = await window.sui.connect();
+      } else if (typeof window.sui.request === "function") {
+        // some providers expose request-style API; try a common connect method
+        try {
+          connectResult = await window.sui.request({ method: "sui_connect" });
+        } catch {
+          // ignore
+        }
       }
-      if (!addr && window.sui.account) addr = window.sui.account.address || window.sui.account;
-      walletAddress = addr || JSON.stringify(r);
-      out(`Sui connect result: ${walletAddress}`);
+    } catch (e) {
+      console.warn("connect() threw:", e);
     }
-    // Fallback to EVM (MetaMask)
-    else if (window.ethereum && typeof window.ethereum.request === "function") {
-      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      walletAddress = accounts && accounts[0];
-      out(`EVM account: ${walletAddress}`);
-    } else {
-      out("No Sui or EVM wallet found in the page.");
-      alert("No Sui or EVM wallet found in the browser.");
+
+    // Try to derive an address from multiple possible shapes
+    let addr = null;
+    if (Array.isArray(connectResult) && connectResult.length) {
+      addr = connectResult[0]?.address || connectResult[0];
     }
+    if (!addr && connectResult && typeof connectResult === "object") {
+      addr = connectResult?.address || connectResult?.account?.address || connectResult?.accounts?.[0]?.address;
+    }
+    // fallback to provider-exposed properties
+    if (!addr) {
+      addr = window.sui?.account?.address || window.sui?.accounts?.[0]?.address || window.sui?.address || null;
+    }
+
+    // If still no address, dump a compact debug view to help identify the provider shape
+    if (!addr) {
+      const probe = {
+        hasConnect: typeof window.sui.connect === "function",
+        hasRequest: typeof window.sui.request === "function",
+        keys: Object.keys(window.sui).slice(0, 20),
+        rawSample: null,
+      };
+      try {
+        // try to get a small JSON-safe sample
+        probe.rawSample = JSON.stringify(window.sui, (k, v) => {
+          if (typeof v === "function") return "[fn]";
+          if (typeof v === "object" && v && Object.keys(v).length > 50) return "[big object]";
+          return v;
+        }, 2).slice(0, 1000);
+      } catch {}
+      out("Connected provider found but no address extracted. Probe: " + JSON.stringify(probe, null, 2));
+      updateWalletUI();
+      return;
+    }
+
+    walletAddress = addr;
+    out(`Slush connect result: ${walletAddress}`);
   } catch (e) {
     out(String(e));
   }
@@ -59,22 +98,24 @@ document.getElementById("btn-list").addEventListener("click", async () => {
 });
 
 async function trySignMessage(message) {
-  // Attempt provider-specific signing; return signature string or empty
   try {
     if (!walletAddress) return "";
-    if (window.ethereum && typeof window.ethereum.request === "function") {
-      // personal_sign expects [message, address] or [address, message] depending on provider; this is common
-      return await window.ethereum.request({ method: "personal_sign", params: [message, walletAddress] });
-    }
-    if (window.sui && typeof window.sui.signMessage === "function") {
-      // Some Sui wallets implement signMessage({ message: Uint8Array })
+    if (window.sui) {
       const encoder = new TextEncoder();
-      const resp = await window.sui.signMessage({ message: encoder.encode(message) });
-      // shape varies; try to flatten
-      return resp?.signature || (typeof resp === "string" ? resp : JSON.stringify(resp));
+      if (typeof window.sui.signMessage === "function") {
+        const resp = await window.sui.signMessage({ message: encoder.encode(message) });
+        return resp?.signature || (typeof resp === "string" ? resp : JSON.stringify(resp));
+      }
+      if (typeof window.sui.request === "function") {
+        try {
+          const resp = await window.sui.request({ method: "sui_signMessage", params: [message] });
+          return resp?.signature || (typeof resp === "string" ? resp : JSON.stringify(resp));
+        } catch (e) {
+          console.warn("sui.request sign attempt failed:", e);
+        }
+      }
     }
   } catch (e) {
-    // Not critical — proceed without signature
     console.warn("Signing failed:", e);
   }
   return "";
@@ -87,10 +128,9 @@ document.getElementById("upload-form").addEventListener("submit", async (ev) => 
   const form = new FormData();
   form.append("file", input.files[0]);
 
-  // Include wallet info (if connected) and attempt an optional signature
   if (walletAddress) {
     form.append("walletAddress", walletAddress);
-    const msg = `Walrus upload at ${new Date().toISOString()}`;
+    const msg = `Walrus upload by ${walletAddress} at ${new Date().toISOString()}`;
     const sig = await trySignMessage(msg);
     if (sig) form.append("signature", sig);
   }
