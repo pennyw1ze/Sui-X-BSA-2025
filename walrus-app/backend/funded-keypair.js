@@ -41,7 +41,7 @@ async function waitForFunding(client, address, amountDue = BigInt('100000000')) 
     while (true) {
         try {
             const balance = await client.getBalance({ owner: address });
-            if (BigInt(balance.totalBalance) >= BigInt('100000000')) {
+            if (BigInt(balance.totalBalance) >= amountDues) {
                 console.log('✅ Address funded successfully!');
                 break;
             }
