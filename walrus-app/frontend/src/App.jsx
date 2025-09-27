@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ConnectButton } from "@mysten/dapp-kit";
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
+import suiMark from './assets/sui_logo_white.svg';
 import './App.css';
 
 const showcaseLeaks = [
@@ -84,7 +85,20 @@ function App() {
           </button>
         </div>
         <div className="hero__nav hero__nav--right" data-reveal="true">
-          <ConnectButton />
+          <ConnectButton
+            className="pill-button pill-button--connect"
+            connectText={(
+              <>
+                <span className="pill-button__icon pill-button__icon--connect" aria-hidden="true">
+                  <img src={suiMark} alt="" />
+                </span>
+                <span className="pill-button__label">
+                  <strong>Connect wallet</strong>
+                  <small>Secure session</small>
+                </span>
+              </>
+            )}
+          />
         </div>
 
         <div className="hero__content" data-reveal="true">
