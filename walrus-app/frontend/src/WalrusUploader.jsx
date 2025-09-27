@@ -91,8 +91,8 @@ const WalrusUploader = () => {
 
     // Create a transaction to fund the temporary wallet from the user's connected wallet
     const tx = new Transaction();
-    const [coin] = tx.splitCoins(tx.gas, [tx.pure(costResult.amount)]);
-    tx.transferObjects([coin], tx.pure(walletResult.wallet.address));
+    const [coin] = tx.splitCoins(tx.gas, [tx.pure('u64',costResult.amount)]);
+    tx.transferObjects([coin], tx.pure('address', walletResult.wallet.address));
 
     setUploadState(prev => ({
       ...prev,
