@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/src/index.css" />
     <style>
       .landing {
+        text-align: center;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -17,21 +18,25 @@
         padding: 2rem;
       }
       .landing h1 {
+        text-align: center;
         font-size: 3rem;
         margin-bottom: 1rem;
       }
       .landing p {
+        text-align: center;
         max-width: 600px;
         margin-bottom: 2rem;
         font-size: 1.2rem;
         opacity: 0.85;
       }
       .landing .buttons {
+        text-align: center;
         display: flex;
         gap: 1rem;
         flex-wrap: wrap;
       }
       .landing .buttons a {
+        text-align: center;
         border-radius: 8px;
         border: 1px solid transparent;
         padding: 0.8em 1.6em;
@@ -44,20 +49,29 @@
         transition: border-color 0.25s, background-color 0.25s;
       }
       .landing .buttons a:hover {
-        border-color: #646cff;
+        text-align: center;
+        border-color: #646cff; 
         background-color: #2a2a2a;
+        }
+      /* New style for the logo */
+      .landing__logo {
+        max-width: 250px; /* Adjust as needed */
+        height: auto;
+        margin-bottom: 2rem; /* Space between logo and h1 */
       }
     </style>
   </head>
   <body>
     <div class="landing">
+      <img src="C:\Users\ramie_ckvh54z\Documents\BSA Hackathons\BSA X SUI 2025\Sui-X-BSA-2025\walrus-app\frontend\src\assets\logo.png" alt="Walrus Vault Logo" class="landing__logo" />
       <h1>Welcome to Walrus Vault!</h1>
       <p>The safest way to upload Documents to Sui — basically WikiLeaks on-chain.</p>
       <div class="buttons">
-        <a href="#app">Open App</a>
-        <a href="#about">About</a>
+        <a href="#app">Start leaking now!</a>
+        <a href="#about">Watch current leaks</a>
       </div>
     </div>
+
 
     <!-- React will mount into this later -->
     <div id="root"></div>
