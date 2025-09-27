@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ConnectButton } from "@mysten/dapp-kit";
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
@@ -29,6 +29,8 @@ const showcaseLeaks = [
 ];
 
 function App() {
+  const [isDonateOpen, setDonateOpen] = useState(false);
+
   useEffect(() => {
     const revealables = document.querySelectorAll('[data-reveal="true"]');
     if (!revealables.length) return undefined;
@@ -68,7 +70,20 @@ function App() {
           <span />
           <span />
         </div>
-        <div className="hero__nav" data-reveal="true">
+        <div className="hero__nav hero__nav--left" data-reveal="true">
+          <button
+            type="button"
+            className="pill-button pill-button--donate"
+            onClick={() => setDonateOpen(true)}
+          >
+            <span className="pill-button__icon" aria-hidden="true">🤝</span>
+            <span className="pill-button__label">
+              <strong>Donate</strong>
+              <small>Keep leaks safe</small>
+            </span>
+          </button>
+        </div>
+        <div className="hero__nav hero__nav--right" data-reveal="true">
           <ConnectButton />
         </div>
 
@@ -136,6 +151,45 @@ function App() {
           </div>
         </section>
       </main>
+
+      {isDonateOpen && (
+        <div
+          className="donate-modal__overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="donate-modal-title"
+          onClick={() => setDonateOpen(false)}
+        >
+          <div
+            className="donate-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="donate-modal__close"
+              aria-label="Close donation message"
+              onClick={() => setDonateOpen(false)}
+            >
+              ×
+            </button>
+            <div className="donate-modal__icon" aria-hidden="true">🫶</div>
+            <h2 id="donate-modal-title">Support Walrus Vault</h2>
+            <p>
+              We&rsquo;re a nonprofit collective fighting to keep critical documents online and
+              whistleblowers protected from powerful governments and corporations. Your donation
+              helps us fund anonymous infrastructure, harden our privacy tooling, and stand guard
+              for those who leak responsibly.
+            </p>
+            <button
+              type="button"
+              className="pill-button pill-button--donate"
+              onClick={() => setDonateOpen(false)}
+            >
+              I&rsquo;m in
+            </button>
+          </div>
+        </div>
+      )}
 
       <footer className="footer">
         <p>
