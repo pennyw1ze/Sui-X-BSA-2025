@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Walrus Vault</title>
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body>
+    <!-- React will mount into this later -->
+    <div id="root">
+      <div class="no-js-fallback">
+        <div class="no-js-spinner" aria-hidden="true"></div>
+        <p>Launching Walrus Vault...</p>
+        <noscript>Walrus Vault requires JavaScript to be enabled.</noscript>
+      </div>
+    </div>
+    <script>
+      const removeFallback = () => {
+        const fallback = document.querySelector('.no-js-fallback');
+        if (fallback) {
+          fallback.classList.add('is-hidden');
+          window.setTimeout(() => fallback.remove(), 450);
+        }
+      };
+
+      if (window.__WALRUS_APP_BOOTSTRAPPED__) {
+        removeFallback();
+      } else {
+        window.addEventListener('walrus-app-bootstrapped', removeFallback, {
+          once: true,
+        });
+
+        window.setTimeout(() => {
+          if (!window.__WALRUS_APP_BOOTSTRAPPED__) {
+            const fallback = document.querySelector('.no-js-fallback');
+            if (fallback) {
+              fallback.innerHTML = `
+                <strong>Still loading?</strong>
+                <p>Run the app with <code>npm run dev</code> or <code>npm run preview</code>,
+                then visit <a href="http://localhost:5173" target="_blank" rel="noreferrer">http://localhost:5173</a>.
+                Opening <code>dist/index.html</code> directly from your file explorer will keep this spinner forever because modern browsers block module loading on the <code>file://</code> protocol.</p>
+              `;
+            }
+          }
+        }, 2000);
+      }
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
