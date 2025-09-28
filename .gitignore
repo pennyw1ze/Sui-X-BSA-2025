@@ -35,6 +35,17 @@ bower_components
 # node-waf configuration
 .lock-wscript
 
+# Configuration files with secrets
+config.json
+*.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
@@ -140,3 +151,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python cache
+__pycache__/
