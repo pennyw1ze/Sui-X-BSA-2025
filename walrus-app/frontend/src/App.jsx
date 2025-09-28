@@ -40,6 +40,7 @@ const showcaseLeaks = [
 
 function App() {
   const [isDonateOpen, setDonateOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [leakState, setLeakState] = useState({
     entries: [],
     loading: true,
@@ -118,7 +119,10 @@ function App() {
   }, [fetchLeaks]);
 
   const usingFallback = !leakState.entries.length;
-  const leaksToDisplay = usingFallback ? showcaseLeaks : leakState.entries;
+  const rawLeaks = usingFallback ? showcaseLeaks : leakState.entries;
+  const leaksToDisplay = rawLeaks.filter((leak) => 
+    leak.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   const carouselError = usingFallback ? null : leakState.error;
   const derivedLlmInfo = leakState.llmInfo ?? (usingFallback
     ? {
@@ -199,6 +203,28 @@ function App() {
               Explore curated leaks uploaded by the community. These cards are placeholders you can
               later connect to live Walrus blob metadata or DAO governance tooling.
             </p>
+            <div className="search-bar">
+              <div className="search-bar__wrapper">
+                <span className="search-bar__icon" aria-hidden="true">🔍</span>
+                <input
+                  type="text"
+                  className="search-bar__input"
+                  placeholder="Search leaks by title..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    className="search-bar__clear"
+                    onClick={() => setSearchTerm('')}
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
           <LeaksCarousel
             items={leaksToDisplay}
