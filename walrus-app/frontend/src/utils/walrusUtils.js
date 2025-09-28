@@ -1,8 +1,8 @@
 // src/utils/walrusUtils.js
 
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { Transaction } from '@mysten/sui/transactions';
 import { WalrusClient } from '@mysten/walrus'; // This is the only import needed from @mysten/walrus
+import { Buffer } from 'buffer';
 
 // Constants
 export const ALLOWED_FILE_TYPES = [
@@ -45,12 +45,28 @@ export const generateNewWallet = () => {
 
 // Cost Calculation
 export const calculateStorageCost = async (file, epochs, walrusClient) => {
+  const toBigInt = (value) => {
+    if (typeof value === 'bigint') return value;
+    if (typeof value === 'number') return BigInt(Math.trunc(value));
+    if (typeof value === 'string') return BigInt(value);
+    if (value && typeof value === 'object' && typeof value.toString === 'function') {
+      return BigInt(value.toString());
+    }
+    return 0n;
+  };
+
   try {
     const arrayBuffer = await file.arrayBuffer();
     const blob = new Uint8Array(arrayBuffer);
     const { storageCost, writeCost } = await walrusClient.storageCost(blob.length, epochs);
-    const walAmount = Number(storageCost) + Number(writeCost);
-    return { success: true, amount: walAmount, amountInSui: walAmount / 1_000_000_000 };
+    const storageCostBig = toBigInt(storageCost);
+    const writeCostBig = toBigInt(writeCost);
+    const walAmount = storageCostBig + writeCostBig;
+    return {
+      success: true,
+      amount: walAmount,
+      amountInSui: Number(walAmount) / 1_000_000_000,
+    };
   } catch (error) {
     return { success: false, error: `Cost calculation failed: ${error.message}` };
   }
@@ -69,41 +85,105 @@ export const initializeWalrusClient = (suiClient) => {
 // File Publishing to Walrus
 export const publishToWalrus = async (file, wallet, epochs, walrusClient) => {
   try {
+    if (!walrusClient) {
+      throw new Error('Walrus client is not initialized.');
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const blob = new Uint8Array(arrayBuffer);
-    
-    if (walrusClient) {
-      const { blobObject } = await walrusClient.writeBlob({
-        blob,
-        deletable: true, // Set a value for deletable
-        epochs,
-        signer: wallet.keypair, // Use the keypair from the passed wallet object
-        owner: wallet.address,
-      });
-      
-      return {
-        success: true,
-        blobId: blobObject.storage.blob_id,
-        storageId: blobObject.storage.id.id,
-        objectId: blobObject.id.id,
-        real: true
-      };
-    } else {
-      throw new Error("Walrus client is not initialized.");
-    }
+
+    const response = await walrusClient.writeBlob({
+      blob,
+      deletable: false,
+      epochs,
+      signer: wallet.keypair,
+      owner: wallet.address,
+    });
+
+    const blobObject = response?.blobObject ?? response;
+    const rawBlobId = blobObject?.storage?.blob_id
+      ?? blobObject?.storage?.blobId
+      ?? blobObject?.id?.id
+      ?? blobObject?.id
+      ?? null;
+    const convertedBlobId = rawBlobId ? suiToWalrusBlobId(rawBlobId) : null;
+
+    return {
+      success: true,
+      blobId: convertedBlobId ?? (rawBlobId ? String(rawBlobId) : null),
+      suiBlobId: rawBlobId ? String(rawBlobId) : null,
+      storageId: blobObject?.storage?.id?.id ?? blobObject?.storage?.id ?? null,
+      objectId: blobObject?.id?.id ?? blobObject?.id ?? null,
+      real: true,
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }
 };
 
+export const suiToWalrusBlobId = (decimal) => {
+  try {
+    const bigIntValue = typeof decimal === 'bigint' ? decimal : BigInt(decimal);
+    const hex = bigIntValue.toString(16).padStart(64, '0');
+    const reversedHex = hex.match(/.{2}/g).reverse().join('');
+    const buffer = Buffer.from(reversedHex, 'hex');
+    const base64 = buffer.toString('base64');
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  } catch (error) {
+    console.error('Error converting Sui blob ID to Walrus format:', error);
+    return null;
+  }
+};
+
+export const suiToWalrusBlobIdAlt = (decimal) => {
+  try {
+    const bigIntValue = typeof decimal === 'bigint' ? decimal : BigInt(decimal);
+    const hex = bigIntValue.toString(16).padStart(64, '0');
+    const bytes = new Uint8Array(32);
+    for (let i = 0; i < 32; i += 1) {
+      bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+    }
+    const base64 = btoa(String.fromCharCode(...bytes));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  } catch (error) {
+    console.error('Error in alternative conversion:', error);
+    return null;
+  }
+};
+
+export const walrusToSuiBlobId = (walrusBlobId) => {
+  try {
+    let base64 = walrusBlobId.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    const buffer = Buffer.from(base64, 'base64');
+    const hex = buffer.toString('hex');
+    const reversedHex = hex.match(/.{2}/g).reverse().join('');
+    return BigInt(`0x${reversedHex}`).toString();
+  } catch (error) {
+    console.error('Error converting Walrus blob ID back to Sui format:', error);
+    return null;
+  }
+};
+
 // Document Management
-export const createDocumentInfo = (file, wallet, epochs, cost, blobInfo) => {
+export const createDocumentInfo = (file, wallet, epochs, cost, blobInfo, description = '') => {
+  const normalizedCost = cost
+    ? {
+        ...cost,
+        amount: typeof cost.amount === 'bigint' ? cost.amount.toString() : cost.amount,
+      }
+    : null;
+
   return {
     id: blobInfo.objectId || 'doc_' + Date.now(),
     name: file.name, size: file.size, type: file.type,
-    uploadDate: new Date().toISOString(), epochs, cost,
-    blobId: blobInfo.blobId, storageId: blobInfo.storageId || null,
-    walletAddress: wallet.address, real: blobInfo.real
+    uploadDate: new Date().toISOString(), epochs, cost: normalizedCost,
+    blobId: blobInfo.blobId, suiBlobId: blobInfo.suiBlobId || null,
+    storageId: blobInfo.storageId || null,
+    walletAddress: wallet.address, real: blobInfo.real,
+    description,
   };
 };
 
@@ -126,11 +206,19 @@ export const loadDocumentsFromStorage = () => {
 };
 
 // Document Sharing and Download
-export const getDocumentShareUrl = (blobId) => `${WALRUS_TESTNET_URL}/${blobId}`;
+export const getDocumentShareUrl = (blobId, fallbackSuiBlobId = null) => {
+  const resolvedId = blobId || (fallbackSuiBlobId ? suiToWalrusBlobId(fallbackSuiBlobId) : null);
+  if (!resolvedId) return null;
+  return `${WALRUS_TESTNET_URL}/${resolvedId}`;
+};
 
 export const downloadDocument = async (doc) => {
   try {
-    const url = getDocumentShareUrl(doc.blobId);
+    const blobId = doc.blobId || (doc.suiBlobId ? suiToWalrusBlobId(doc.suiBlobId) : null);
+    if (!blobId) {
+      throw new Error('Missing Walrus blob identifier');
+    }
+    const url = getDocumentShareUrl(blobId);
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to download document');
     const blob = await response.blob();
@@ -150,5 +238,7 @@ export const downloadDocument = async (doc) => {
 
 // Step Management Helper
 export const createStepMessage = (message) => ({
-  id: Date.now(), message, timestamp: new Date().toLocaleTimeString()
+  id: Date.now() + Math.random(),
+  message,
+  timestamp: new Date().toLocaleTimeString()
 });
