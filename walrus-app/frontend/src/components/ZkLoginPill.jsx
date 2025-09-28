@@ -12,6 +12,7 @@ import {
     jwtToAddress,
 } from '@mysten/sui/zklogin';
 import { jwtDecode } from 'jwt-decode';
+import suiMark from '../assets/sui_logo_white.svg';
 
 // Configuration
 const NETWORK = 'testnet';
@@ -249,13 +250,15 @@ const ZkLoginPill = () => {
         <>
             <button
                 type="button"
-                className="pill-button pill-button--wallet"
+                className="pill-button pill-button--connect connect-button--pill"
                 onClick={() => setIsOpen(true)}
             >
-                <span className="pill-button__icon" aria-hidden="true">🔐</span>
+                <span className="pill-button__icon pill-button__icon--connect" aria-hidden="true">
+                    <img src={suiMark} alt="" />
+                </span>
                 <span className="pill-button__label">
                     <strong>{isLoggedIn ? 'Account' : 'zkLogin'}</strong>
-                    <small>{isLoggedIn ? currentAccount.domain : 'Connect'}</small>
+                    <small>{isLoggedIn ? currentAccount.domain : 'Secure session'}</small>
                 </span>
             </button>
 
