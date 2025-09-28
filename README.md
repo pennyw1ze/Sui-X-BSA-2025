@@ -1,13 +1,12 @@
 # Sui-X-BSA-2025
 
-Members:
+## Members:
 
-
-Technical University of Munich, TUM Blockchain Club : Sparsh, Rami
-
-Sapienza Università di Roma : Leo, Riccardo
-
-Tor Vergata University : Eva
+- **Sparsh**, Technical University of Munich;
+- **Rami**, Technical University of Munich;
+- **Leo**, Sapienza Università di Roma;
+- **Ricky**, Sapienza Università di Roma;
+- **Eva**, Tor Vergata University;
 
 ## Live leak enrichment service
 

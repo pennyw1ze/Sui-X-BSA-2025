@@ -5,7 +5,6 @@ import logo from './assets/logo.png';
 import ZkLoginPill from './components/ZkLoginPill';
 import WalletConnectPill from './components/WalletConnectPill';
 import LeaksCarousel from './components/LeaksCarousel';
-import Thickbox from './components/Thickbox';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
@@ -51,7 +50,6 @@ const showcaseLeaks = [
 function App() {
   const [isDonateOpen, setDonateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isThickboxChecked, setIsThickboxChecked] = useState(false);
   const [zkLoginAccounts, setZkLoginAccounts] = useState([]);
   const [balances, setBalances] = useState(new Map());
   const [leakState, setLeakState] = useState({
@@ -273,6 +271,32 @@ function App() {
       </header>
 
       <main>
+        {/* zkLogin Status - moved above "Start leaking now" */}
+        {zkLoginAccounts.length > 0 && (
+          <div className="zklogin-status-card">
+            <h3>🔐 zkLogin Status</h3>
+            {zkLoginAccounts.map((account, index) => {
+              const balance = balances.get(account.userAddr) || 0;
+              return (
+                <div key={account.userAddr} className="account-status">
+                  <div className="account-info">
+                    <strong>Provider:</strong> {account.provider}
+                  </div>
+                  <div className="account-info">
+                    <strong>Domain:</strong> {account.domain || 'N/A'}
+                  </div>
+                  <div className="account-info">
+                    <strong>Address:</strong> {account.userAddr.slice(0, 6)}...{account.userAddr.slice(-4)}
+                  </div>
+                  <div className="account-info balance">
+                    <strong>SUI Balance:</strong> {balance.toFixed(4)} SUI
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
         <section id="start" className="section uploader-section" data-reveal="true">
           <div className="section__header">
             <h2>Start leaking now</h2>
@@ -281,37 +305,8 @@ function App() {
               footprint on Sui. Everything happens client-side for maximum privacy.
             </p>
           </div>
-          {/* Check if the user is already logged (zkLogin token in session storage) */}
-          {zkLoginAccounts.length > 0 && (
-            <div className="zklogin-status-card">
-              <h3>🔐 zkLogin Status</h3>
-              {zkLoginAccounts.map((account, index) => {
-                const balance = balances.get(account.userAddr) || 0;
-                return (
-                  <div key={account.userAddr} className="account-status">
-                    <div className="account-info">
-                      <strong>Provider:</strong> {account.provider}
-                    </div>
-                    <div className="account-info">
-                      <strong>Domain:</strong> {account.domain || 'N/A'}
-                    </div>
-                    <div className="account-info">
-                      <strong>Address:</strong> {account.userAddr.slice(0, 6)}...{account.userAddr.slice(-4)}
-                    </div>
-                    <div className="account-info balance">
-                      <strong>SUI Balance:</strong> {balance.toFixed(4)} SUI
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
           
-          <WalrusUploader isThickboxChecked={isThickboxChecked} />
-          <Thickbox 
-            isChecked={isThickboxChecked} 
-            onCheckedChange={setIsThickboxChecked}
-          />
+          <WalrusUploader />
         </section>
 
         <section id="leaks" className="section leaks-section" data-reveal="true">

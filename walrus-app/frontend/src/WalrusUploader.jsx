@@ -3,6 +3,7 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { parseStructTag } from '@mysten/sui/utils';
 import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import Thickbox from './components/Thickbox';
 import {
   formatFileSize,
   validateFile,
@@ -39,11 +40,12 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG = {
   WAL_COIN_TYPE: '0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL',
 };
 
-const WalrusUploader = ({ isThickboxChecked }) => {
+const WalrusUploader = () => {
   const [file, setFile] = useState(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [description, setDescription] = useState('');
   const [documents, setDocuments] = useState([]);
+  const [isThickboxChecked, setIsThickboxChecked] = useState(false);
   const [uploadState, setUploadState] = useState({
     steps: [],
     currentStep: 'idle',
@@ -454,6 +456,12 @@ const WalrusUploader = ({ isThickboxChecked }) => {
           ))}
         </div>
       )}
+
+      {/* Thickbox - moved from App.jsx and placed after Upload Status */}
+      <Thickbox 
+        isChecked={isThickboxChecked} 
+        onCheckedChange={setIsThickboxChecked}
+      />
 
       <div className="document-list">
         <h3>Uploaded Documents</h3>
