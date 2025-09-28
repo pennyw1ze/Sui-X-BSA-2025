@@ -9,7 +9,6 @@ import Thickbox from './components/Thickbox';
 import {
   formatFileSize,
   validateFile,
-  generateNewWallet,
   calculateStorageCost,
   initializeWalrusClient,
   publishToWalrus,
@@ -17,8 +16,6 @@ import {
   saveDocumentsToStorage,
   loadDocumentsFromStorage,
   getDocumentShareUrl,
-  downloadDocument,
-  suiToWalrusBlobId,
   createStepMessage,
 } from './utils/walrusUtils';
 import { createAddDocumentTransaction } from './utils/uploadToSmartcontract';
@@ -430,7 +427,7 @@ const WalrusUploader = () => {
       saveDocumentsToStorage(updatedDocuments);
 
       // Now publish to smart contract
-      const linkToBlobId = publishResult.blobId ? `https://walrus.testnet.sui.io/${publishResult.blobId}` : '';
+      const linkToBlobId = publishResult.blobId ? `https://walrus-testnet.blockscope.net/v1/blobs/${publishResult.blobId}` : '';
       
       // Create title with domain prefix if thickbox is checked
       let title = file.name;
@@ -509,7 +506,6 @@ const WalrusUploader = () => {
             rows={3}
           />
         </label>
-        <p className="storage-note">Files are currently pinned for a single Walrus epoch; renewal logic will land soon.</p>
 
         {uploadState.currentStep !== 'ready_to_fund' ? (
           <button onClick={prepareUpload} disabled={isButtonDisabled}>
@@ -546,23 +542,24 @@ const WalrusUploader = () => {
           const shareUrl = getDocumentShareUrl(doc.blobId, doc.suiBlobId);
           return (
             <div key={doc.id} className="document-item">
-              <p><strong>Name:</strong> {doc.name}</p>
-              <p><strong>Size:</strong> {formatFileSize(doc.size)}</p>
-              {doc.description && <p><strong>Description:</strong> {doc.description}</p>}
-              <p><strong>Blob ID:</strong> {doc.blobId}</p>
-              {doc.recovered && (
-                <p className="document-recovered">Transaction failed on-chain; blob recovered from existing wallet state.</p>
-              )}
-              <a
-                href={shareUrl ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-disabled={!shareUrl}
-                className={!shareUrl ? 'disabled-link' : undefined}
-              >
-                View on Walrus
-              </a>
-              <button onClick={() => downloadDocument(doc)}>Download</button>
+              <div className="document-content">
+                <p><strong>Name:</strong> {doc.name}</p>
+                <p><strong>Size:</strong> {formatFileSize(doc.size)}</p>
+                {doc.description && <p><strong>Description:</strong> {doc.description}</p>}
+                <p><strong>Blob ID:</strong> {doc.blobId}</p>
+                {doc.recovered && (
+                  <p className="document-recovered">Transaction failed on-chain; blob recovered from existing wallet state.</p>
+                )}
+                <a
+                  href={shareUrl ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled={!shareUrl}
+                  className={!shareUrl ? 'disabled-link' : undefined}
+                >
+                  View on Walrus
+                </a>
+              </div>
             </div>
           );
         })}

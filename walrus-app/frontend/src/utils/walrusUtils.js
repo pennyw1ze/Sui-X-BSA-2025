@@ -10,7 +10,7 @@ export const ALLOWED_FILE_TYPES = [
   'text/plain', 'text/markdown', 'image/jpeg', 'image/png', 'image/gif'
 ];
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-export const WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus-testnet.walrus.space/v1/blobs';
+export const WALRUS_AGGREGATOR_URL = 'https://walrus-testnet.blockscope.net/v1/blobs';
 
 // Utility Functions
 export const formatFileSize = (bytes) => {
@@ -35,16 +35,16 @@ export const validateFile = (file) => {
   return { valid: true };
 };
 
-// Wallet Generation
-export const generateNewWallet = () => {
-  try {
-    const newKeypair = new Ed25519Keypair();
-    const newAddress = newKeypair.toSuiAddress();
-    return { success: true, wallet: { keypair: newKeypair, address: newAddress } };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
+// OLD Wallet Generation (not used currently)
+// export const generateNewWallet = () => {
+//   try {
+//     const newKeypair = new Ed25519Keypair();
+//     const newAddress = newKeypair.toSuiAddress();
+//     return { success: true, wallet: { keypair: newKeypair, address: newAddress } };
+//   } catch (error) {
+//     return { success: false, error: error.message };
+//   }
+// };
 
 // Cost Calculation
 export const calculateStorageCost = async (file, epochs, walrusClient) => {
