@@ -10,7 +10,7 @@ export const ALLOWED_FILE_TYPES = [
   'text/plain', 'text/markdown', 'image/jpeg', 'image/png', 'image/gif'
 ];
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-export const WALRUS_TESTNET_URL = 'https://walrus-testnet.blockscope.net/v1/blobs';
+export const WALRUS_AGGREGATOR_URL = 'https://aggregator.walrus-testnet.walrus.space/v1/blobs';
 
 // Utility Functions
 export const formatFileSize = (bytes) => {
@@ -88,36 +88,62 @@ export const initializeWalrusClient = (suiClient) => {
 // File Publishing to Walrus
 export const publishToWalrus = async (file, wallet, epochs, walrusClient) => {
   try {
-    if (!walrusClient) {
-      throw new Error('Walrus client is not initialized.');
+
+    // ORIGINAL IMPLEMENTATION NOT WORKING BECAUSE OF TESTNET ISSUES
+    // const arrayBuffer = await file.arrayBuffer();
+    // const blob = new Uint8Array(arrayBuffer);
+
+    // const response = await walrusClient.writeBlob({
+    //   blob,
+    //   deletable: false,
+    //   epochs,
+    //   signer: wallet.keypair,
+    //   owner: wallet.address,
+    // });
+
+
+    console.log('Uploading file to Walrus:', wallet.address, file.name, file.size, epochs);
+    
+    // Use the publisher URL directly instead of walrusClient
+    const basePublisherUrl = "https://publisher.walrus-testnet.walrus.space";
+    
+    // Submit a PUT request with the file's content as the body to the /v1/blobs endpoint
+    const response = await fetch(`${basePublisherUrl}/v1/blobs?epochs=${epochs}`, {
+      method: "PUT",
+      body: file,
+    });
+    console.log('Walrus upload response status:', response.status);
+
+    if (response.status !== 200) {
+      throw new Error("Something went wrong when storing the blob!");
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const blob = new Uint8Array(arrayBuffer);
+    const storageInfo = await response.json();
+    console.log('Walrus upload response:', storageInfo);
 
-    const response = await walrusClient.writeBlob({
-      blob,
-      deletable: false,
-      epochs,
-      signer: wallet.keypair,
-      owner: wallet.address,
-    });
-
-    const blobObject = response?.blobObject ?? response;
-    const rawBlobId =
-      blobObject?.storage?.blob_id ??
-      blobObject?.storage?.blobId ??
-      blobObject?.id?.id ??
-      blobObject?.id ??
-      null;
-    const convertedBlobId = rawBlobId ? suiToWalrusBlobId(rawBlobId) : null;
+    // Extract the displayed fields from either of the two successful responses
+    let blobId, suiBlobId, objectId, storageId;
+    
+    if ("alreadyCertified" in storageInfo) {
+      blobId = storageInfo.alreadyCertified.blobId;
+      suiBlobId = storageInfo.alreadyCertified.event.txDigest; // Using transaction digest as reference
+      objectId = null; // No object for already certified
+      storageId = null;
+    } else if ("newlyCreated" in storageInfo) {
+      blobId = storageInfo.newlyCreated.blobObject.blobId;
+      suiBlobId = storageInfo.newlyCreated.blobObject.id; // The Sui object ID
+      objectId = storageInfo.newlyCreated.blobObject.id;
+      storageId = storageInfo.newlyCreated.blobObject.storage?.id || null;
+    } else {
+      throw new Error("Unhandled successful response!");
+    }
 
     return {
       success: true,
-      blobId: convertedBlobId ?? (rawBlobId ? String(rawBlobId) : null),
-      suiBlobId: rawBlobId ? String(rawBlobId) : null,
-      storageId: blobObject?.storage?.id?.id ?? blobObject?.storage?.id ?? null,
-      objectId: blobObject?.id?.id ?? blobObject?.id ?? null,
+      blobId: blobId,
+      suiBlobId: suiBlobId ? String(suiBlobId) : null,
+      storageId: storageId ? String(storageId) : null,
+      objectId: objectId ? String(objectId) : null,
       real: true,
     };
   } catch (error) {
@@ -214,13 +240,14 @@ export const loadDocumentsFromStorage = () => {
   } catch (error) {
     return { success: false, documents: [], error: error.message };
   }
+  
 };
 
 // Document Sharing and Download
 export const getDocumentShareUrl = (blobId, fallbackSuiBlobId = null) => {
   const resolvedId = blobId || (fallbackSuiBlobId ? suiToWalrusBlobId(fallbackSuiBlobId) : null);
   if (!resolvedId) return null;
-  return `${WALRUS_TESTNET_URL}/${resolvedId}`;
+  return `${WALRUS_AGGREGATOR_URL}/${resolvedId}`;
 };
 
 export const downloadDocument = async (doc) => {

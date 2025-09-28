@@ -18,6 +18,7 @@ import {
   suiToWalrusBlobId,
   createStepMessage,
 } from './utils/walrusUtils';
+import { createAddDocumentTransaction } from './utils/uploadToSmartcontract';
 
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 const STORAGE_EPOCHS = 1;
@@ -325,70 +326,36 @@ const WalrusUploader = () => {
 
       const publishResult = await publishToWalrus(file, generatedWallet, STORAGE_EPOCHS, walrusClient);
 
-      if (!publishResult.success) {
-        setUploadState((prev) => ({
-          ...prev,
-          steps: [...prev.steps, createStepMessage(`Publish failed: ${publishResult.error}`)],
-        }));
-
-        const blobs = await suiClient.getOwnedObjects({
-          owner: generatedWallet.address,
-          filter: { StructType: '0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob' },
-          options: { showType: true, showContent: true },
-        });
-
-        if (blobs.data && blobs.data.length > 0) {
-          const lastBlob = blobs.data[blobs.data.length - 1];
-          const rawBlobId = lastBlob?.data?.content?.fields?.blob_id;
-          const blobId = rawBlobId ? suiToWalrusBlobId(rawBlobId) : null;
-
-          if (blobId) {
-            const alreadyTracked = documents.some(
-              (doc) => (blobId && doc.blobId === blobId) || (rawBlobId && doc.suiBlobId === String(rawBlobId)),
-            );
-
-            if (alreadyTracked) {
-              throw new Error('Publish failed and no new Walrus blob was created. Increase your SUI balance and try again.');
-            }
-
-            const recoveredDoc = createDocumentInfo(
-              file,
-              generatedWallet,
-              STORAGE_EPOCHS,
-              costResult,
-              {
-                success: true,
-                blobId,
-                suiBlobId: rawBlobId,
-                storageId: null,
-                objectId: lastBlob?.data?.content?.fields?.id?.id ?? null,
-                real: true,
-                recovered: true,
-              },
-              description,
-            );
-
-            const updatedDocuments = [...documents, recoveredDoc];
-            setDocuments(updatedDocuments);
-            saveDocumentsToStorage(updatedDocuments);
-
-            setUploadState((prev) => ({
-              ...prev,
-              currentStep: 'completed',
-              steps: [...prev.steps, createStepMessage(`File published (recovered)! Blob ID: ${blobId}`)],
-            }));
-            resetForm();
-            return;
-          }
-        }
-
-        throw new Error(publishResult.error || 'Failed to publish and no blob found in temporary wallet.');
-      }
-
       const newDoc = createDocumentInfo(file, generatedWallet, STORAGE_EPOCHS, costResult, publishResult, description);
       const updatedDocuments = [...documents, newDoc];
       setDocuments(updatedDocuments);
       saveDocumentsToStorage(updatedDocuments);
+
+      // Now publish to smart contract
+      const linkToBlobId = publishResult.blobId ? `https://walrus.testnet.sui.io/${publishResult.blobId}` : '';
+      const title = file.name;
+      
+      if (linkToBlobId) {
+        setUploadState((prev) => ({
+          ...prev,
+          steps: [...prev.steps, createStepMessage('Publishing document information to smart contract...')],
+        }));
+
+        try {
+          const smartContractTx = createAddDocumentTransaction(title, description, linkToBlobId);
+          const smartContractResult = await signAndExecute({ transaction: smartContractTx });
+          
+          setUploadState((prev) => ({
+            ...prev,
+            steps: [...prev.steps, createStepMessage(`Document published to smart contract! Transaction: ${smartContractResult.digest}`)],
+          }));
+        } catch (smartContractError) {
+          setUploadState((prev) => ({
+            ...prev,
+            steps: [...prev.steps, createStepMessage(`Warning: Failed to publish to smart contract: ${smartContractError.message}`)],
+          }));
+        }
+      }
 
       setUploadState((prev) => ({
         ...prev,
@@ -403,9 +370,7 @@ const WalrusUploader = () => {
         error: `An error occurred: ${error.message}`,
       }));
     }
-  };
-
-  const isButtonDisabled =
+  };  const isButtonDisabled =
     !file ||
     !account ||
     !description.trim() ||
