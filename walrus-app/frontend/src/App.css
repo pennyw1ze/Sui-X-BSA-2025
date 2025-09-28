@@ -1238,3 +1238,64 @@
   color: rgba(116, 163, 255, 0.8);
   font-style: italic;
 }
+
+/* zkLogin Status Card Styles */
+.zklogin-status-card {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: rgba(8, 14, 36, 0.6);
+  border: 1px solid rgba(116, 163, 255, 0.35);
+  border-radius: 16px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.zklogin-status-card h3 {
+  margin: 0 0 1rem 0;
+  color: rgba(116, 163, 255, 0.9);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.account-status {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.account-status:last-child {
+  margin-bottom: 0;
+}
+
+.account-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: rgba(231, 255, 255, 0.8);
+}
+
+.account-info:last-child {
+  margin-bottom: 0;
+}
+
+.account-info strong {
+  color: rgba(116, 163, 255, 0.9);
+  font-weight: 600;
+}
+
+.account-info.balance {
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 0.5rem;
+}
+
+.account-info.balance strong {
+  color: rgba(34, 197, 94, 0.9);
+}
