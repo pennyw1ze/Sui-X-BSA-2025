@@ -265,7 +265,7 @@ function App() {
             </p>
             <button
               type="button"
-              className="pill-button pill-button--donate"
+              className="pill-button pill-button--donate"cd 
               onClick={() => setDonateOpen(false)}
             >
               I&rsquo;m in
