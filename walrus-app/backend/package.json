@@ -17,6 +17,7 @@
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
     "pino": "^8.21.0",
     "pino-pretty": "^10.3.1"
   },

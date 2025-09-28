@@ -41,6 +41,104 @@ const upload = multer();
 
 const leakDataPath = path.join(__dirname, 'data', 'leaks.json');
 
+const DOCUMENT_LIST_OBJECT_ID = process.env.SUI_DOCUMENT_LIST_ID
+  || '0xd7515be8943d0751fc7c11600b9cad477d97f061b081db614379e639f0f02e93';
+const SUI_FULLNODE_URL = process.env.SUI_FULLNODE_URL || 'https://fullnode.testnet.sui.io/';
+const DOCUMENT_CACHE_TTL_MS = Number(process.env.SUI_DOCUMENT_CACHE_TTL_MS || 30_000);
+
+let documentCache = { data: null, expiresAt: 0 };
+let cachedFetchModule;
+
+const ensureFetch = async () => {
+  if (typeof fetch !== 'undefined') {
+    return fetch;
+  }
+  if (cachedFetchModule) {
+    return cachedFetchModule;
+  }
+  const mod = await import('node-fetch');
+  cachedFetchModule = mod.default;
+  return cachedFetchModule;
+};
+
+const transformOnChainDocuments = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.map((item, index) => {
+    const fields = item?.fields ?? {};
+    return {
+      id: `${DOCUMENT_LIST_OBJECT_ID}::${index}`,
+      title: fields.title ?? `Untitled document #${index + 1}`,
+      description: fields.description ?? '',
+      link: fields.link ?? '',
+      status: 'On-chain',
+      source: 'sui',
+    };
+  });
+};
+
+const fetchDocumentsFromChain = async () => {
+  const fetchApi = await ensureFetch();
+
+  const response = await fetchApi(SUI_FULLNODE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: `documents-${Date.now()}`,
+      method: 'sui_getObject',
+      params: [
+        DOCUMENT_LIST_OBJECT_ID,
+        { showContent: true },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Sui RPC responded with status ${response.status}`);
+  }
+
+  const payload = await response.json();
+  if (payload.error) {
+    throw new Error(payload.error.message || 'Unknown Sui RPC error');
+  }
+
+  const items = payload?.result?.data?.content?.fields?.items ?? [];
+  const documents = transformOnChainDocuments(items);
+  logger.debug({ count: documents.length }, 'sui_documents_fetched');
+  return documents;
+};
+
+const persistLocalLeakCache = async (entries) => {
+  try {
+    await fs.writeFile(leakDataPath, JSON.stringify(entries, null, 2), 'utf-8');
+  } catch (error) {
+    logger.warn({ err: error }, 'unable_to_write_leak_cache');
+  }
+};
+
+const readLocalLeakCache = async () => {
+  try {
+    const raw = await fs.readFile(leakDataPath, 'utf-8');
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) {
+      return data.map((item, index) => ({
+        id: item.id ?? `${DOCUMENT_LIST_OBJECT_ID}::cache-${index}`,
+        title: item.title ?? `Cached document #${index + 1}`,
+        description: item.description ?? '',
+        link: item.link ?? '',
+        status: item.status ?? 'Cached',
+        source: item.source ?? 'cache',
+      }));
+    }
+  } catch (error) {
+    logger.warn({ err: error }, 'unable_to_read_leak_data_file');
+  }
+  return [];
+};
+
 const STOP_WORDS = new Set([
   'the', 'and', 'with', 'from', 'that', 'this', 'into', 'using', 'notes', 'draft', 'leak', 'report',
   'proposal', 'integration', 'early', 'look', 'bridge', 'across', 'across', 'sui', 'walrus', 'for', 'into',
@@ -109,16 +207,32 @@ const sanitizeEntry = (rawEntry, baseEntry) => {
 };
 
 const loadLeakEntries = async () => {
-  try {
-    const raw = await fs.readFile(leakDataPath, 'utf-8');
-    const data = JSON.parse(raw);
-    if (Array.isArray(data)) {
-      return data;
-    }
-  } catch (error) {
-    logger.warn({ err: error }, 'unable_to_read_leak_data_file');
+  const now = Date.now();
+  if (documentCache.data && now < documentCache.expiresAt) {
+    return documentCache.data;
   }
-  return [];
+
+  try {
+    const documents = await fetchDocumentsFromChain();
+    if (documents.length) {
+      documentCache = {
+        data: documents,
+        expiresAt: now + DOCUMENT_CACHE_TTL_MS,
+      };
+  await persistLocalLeakCache(documents);
+      return documents;
+    }
+    logger.info('sui_documents_empty');
+  } catch (error) {
+    logger.error({ err: error }, 'fetch_on_chain_documents_failed');
+  }
+
+  const fallback = await readLocalLeakCache();
+  documentCache = {
+    data: fallback,
+    expiresAt: now + DOCUMENT_CACHE_TTL_MS,
+  };
+  return fallback;
 };
 
 app.get('/', (req, res) => {

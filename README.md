@@ -1,4 +1,4 @@
-# Sui-X-BSA-2025 : Walrus Vault
+# Sui-X-BSA-2025
 
 Members:
 
@@ -8,7 +8,6 @@ Technical University of Munich, TUM Blockchain Club : Sparsh, Rami
 Sapienza Università di Roma : Leo, Riccardo
 
 Tor Vergata University : Eva
-
 
 ## Live leak enrichment service
 
@@ -45,3 +44,13 @@ The frontend automatically queries `GET http://localhost:3001/leaks` (override w
 ### Logging
 
 The backend now uses [Pino](https://github.com/pinojs/pino) for structured logging. Logs are prettified locally and emit JSON in production. Control verbosity with `LOG_LEVEL=debug` and override the transport completely by editing `backend/logger.js`.
+
+### On-chain documents
+
+`/leaks` now hydrates documents straight from the shared `DocumentsList` object on Sui. Configuration knobs:
+
+- `SUI_DOCUMENT_LIST_ID` – defaults to `0xd7515be8943d0751fc7c11600b9cad477d97f061b081db614379e639f0f02e93`.
+- `SUI_FULLNODE_URL` – defaults to the public testnet fullnode (`https://fullnode.testnet.sui.io/`).
+- `SUI_DOCUMENT_CACHE_TTL_MS` – optional in-memory cache TTL (default `30000`).
+
+We persist a JSON snapshot to `walrus-app/backend/data/leaks.json` for offline use; the backend automatically refreshes this cache whenever a live fetch succeeds.
