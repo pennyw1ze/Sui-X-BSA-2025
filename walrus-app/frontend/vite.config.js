@@ -14,4 +14,12 @@ export default defineConfig({
     exclude: ['@mysten/sui', '@mysten/walrus'],
     include: ['poseidon-lite'],
   },
+  server: {
+    port: 3000,
+    host: true
+  },
+  preview: {
+    port: 3000,
+    host: true
+  }
 })

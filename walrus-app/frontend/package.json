@@ -14,6 +14,8 @@
     "@mysten/walrus": "^0.1.0",
     "@mysten/dapp-kit": "0.18.0",
     "buffer": "^6.0.3",
+    "@mysten/zklogin": "^0.8.1",
+    "jwt-decode": "^4.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -28,6 +30,5 @@
     "vite": "^5.2.0",
     "vite-plugin-top-level-await": "^1.4.1",
     "vite-plugin-wasm": "^3.3.0"
-    
   }
 }
