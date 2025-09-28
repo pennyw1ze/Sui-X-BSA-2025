@@ -74,6 +74,61 @@ const WalrusUploader = () => {
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
+  // Helper function to get zkLogin ephemeral keypair from session storage
+  const getZkLoginKeypair = () => {
+    try {
+      // First try to get from zklogin-demo.accounts (current format)
+      const accountDataKey = 'zklogin-demo.accounts';
+      const accountDataRaw = sessionStorage.getItem(accountDataKey);
+      
+      if (accountDataRaw) {
+        const accountData = JSON.parse(accountDataRaw);
+        if (accountData && accountData.length > 0 && accountData[0].ephemeralPrivateKey) {
+          const ephemeralPrivateKey = accountData[0].ephemeralPrivateKey;
+          
+          // Decode the private key and create keypair
+          const keyPair = decodeSuiPrivateKey(ephemeralPrivateKey);
+          const zkKeypair = Ed25519Keypair.fromSecretKey(keyPair.secretKey);
+          
+          return {
+            success: true,
+            wallet: {
+              keypair: zkKeypair,
+              address: zkKeypair.toSuiAddress()
+            }
+          };
+        }
+      }
+      
+      // Fallback: try the old zklogin-demo.setup format
+      const setupData = sessionStorage.getItem('zklogin-demo.setup');
+      if (setupData) {
+        const { ephemeralPrivateKey } = JSON.parse(setupData);
+        if (ephemeralPrivateKey) {
+          // Decode the private key and create keypair
+          const keyPair = decodeSuiPrivateKey(ephemeralPrivateKey);
+          const zkKeypair = Ed25519Keypair.fromSecretKey(keyPair.secretKey);
+          
+          return {
+            success: true,
+            wallet: {
+              keypair: zkKeypair,
+              address: zkKeypair.toSuiAddress()
+            }
+          };
+        }
+      }
+      
+      throw new Error('zkLogin session data not found. Please authenticate with zkLogin first.');
+    } catch (error) {
+      console.error('Failed to get zkLogin keypair:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  };
+
   useEffect(() => {
     const loaded = loadDocumentsFromStorage();
     if (loaded.success) {
@@ -132,11 +187,14 @@ const WalrusUploader = () => {
       return;
     }
 
-    const walletResult = generateNewWallet();
-    if (!walletResult.success) {
-      setUploadState((prev) => ({ ...prev, currentStep: 'error', error: 'Failed to generate new wallet.' }));
+    // Use zkLogin ephemeral keypair instead of generating a new wallet
+    const zkWalletResult = getZkLoginKeypair();
+    if (!zkWalletResult.success) {
+      setUploadState((prev) => ({ ...prev, currentStep: 'error', error: zkWalletResult.error }));
       return;
     }
+
+    const zkWallet = zkWalletResult.wallet;
 
     const tx = new Transaction();
     let requiresExchange = false;
@@ -144,6 +202,7 @@ const WalrusUploader = () => {
 
     try {
       const balances = await suiClient.getAllBalances({ owner: account.address });
+      
       const walBalance = balances.find((balance) => balance.coinType === TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE);
       const walAmount = walBalance ? BigInt(walBalance.totalBalance) : 0n;
 
@@ -152,14 +211,21 @@ const WalrusUploader = () => {
         throw new Error('No SUI coins found to fund WAL exchange. Top up your wallet and try again.');
       }
 
-      const [primarySuiCoin] = [...suiCoins.data].sort((a, b) => BigInt(b.balance) - BigInt(a.balance));
+      const [primarySuiCoin] = [...suiCoins.data].sort((a, b) => {
+        const balanceA = BigInt(a.balance);
+        const balanceB = BigInt(b.balance);
+        if (balanceB > balanceA) return 1;
+        if (balanceB < balanceA) return -1;
+        return 0;
+      });
 
       const primarySuiBalance = BigInt(primarySuiCoin.balance);
       const totalSuiForTransfers = requiredWalAmount + SUI_WRITE_GAS_BUFFER;
       const totalSuiNeeded = totalSuiForTransfers + BigInt(GAS_BUDGET) + MIN_GAS_RESERVE;
 
       if (primarySuiBalance <= totalSuiNeeded) {
-        const neededDisplay = (Number(totalSuiNeeded) / 1_000_000_000).toFixed(4);
+        const neededInSui = totalSuiNeeded / 1_000_000_000n; // BigInt division
+        const neededDisplay = Number(neededInSui).toFixed(4);
         throw new Error(`Not enough SUI to cover WAL funding. Ensure your largest SUI coin holds at least ${neededDisplay} SUI.`);
       }
 
@@ -193,12 +259,12 @@ const WalrusUploader = () => {
           arguments: [tx.object(exchangeId), suiToExchange],
         });
 
-        tx.transferObjects([walCoin], tx.pure('address', walletResult.wallet.address));
+        tx.transferObjects([walCoin], tx.pure('address', zkWallet.address));
         const [suiGas] = tx.splitCoins(
           tx.gas,
           [tx.pure('u64', SUI_WRITE_GAS_BUFFER.toString())],
         );
-        tx.transferObjects([suiGas], tx.pure('address', walletResult.wallet.address));
+        tx.transferObjects([suiGas], tx.pure('address', zkWallet.address));
       } else {
         setUploadState((prev) => ({
           ...prev,
@@ -209,6 +275,7 @@ const WalrusUploader = () => {
           tx.gas,
           [tx.pure('u64', SUI_WRITE_GAS_BUFFER.toString())],
         );
+        
         const walCoins = await suiClient.getCoins({
           owner: account.address,
           coinType: TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE,
@@ -218,8 +285,16 @@ const WalrusUploader = () => {
           throw new Error('No WAL coins found in wallet, but balance check succeeded.');
         }
 
-        const sortedWalCoins = [...walCoins.data].sort((a, b) => BigInt(b.balance) - BigInt(a.balance));
+        const sortedWalCoins = [...walCoins.data].sort((a, b) => {
+          const balanceA = BigInt(a.balance);
+          const balanceB = BigInt(b.balance);
+          if (balanceB > balanceA) return 1;
+          if (balanceB < balanceA) return -1;
+          return 0;
+        });
+        
         const totalWalBalance = sortedWalCoins.reduce((sum, coin) => sum + BigInt(coin.balance), 0n);
+        
         if (totalWalBalance < requiredWalAmount) {
           throw new Error('Total WAL balance is below the storage requirement. Top up WAL and try again.');
         }
@@ -240,7 +315,7 @@ const WalrusUploader = () => {
           tx.object(primaryWalCoinId),
           [tx.pure('u64', requiredWalAmount.toString())],
         );
-        tx.transferObjects([requiredWalCoin, suiGas], tx.pure('address', walletResult.wallet.address));
+        tx.transferObjects([requiredWalCoin, suiGas], tx.pure('address', zkWallet.address));
       }
     } catch (error) {
       setUploadState((prev) => ({
@@ -251,19 +326,19 @@ const WalrusUploader = () => {
       return;
     }
 
-  tx.setGasBudget(GAS_BUDGET);
+    tx.setGasBudget(GAS_BUDGET);
 
     setUploadState((prev) => ({
       ...prev,
       currentStep: 'ready_to_fund',
       steps: [
         ...prev.steps,
+        createStepMessage(`Using zkLogin ephemeral wallet: ${zkWallet.address.slice(0, 8)}...`),
         createStepMessage(`Storage cost calculated: ${costResult.amountInSui.toFixed(6)} SUI (WAL equivalent)`),
         createStepMessage('Transaction prepared. Ready for your approval.'),
       ],
       sessionData: {
-        generatedWallet: walletResult.wallet,
-        generatedKeypair: walletResult.wallet.keypair,
+        zkLoginWallet: zkWallet,
         walrusClient,
         costResult,
         fundingTransaction: tx,
@@ -276,8 +351,7 @@ const WalrusUploader = () => {
     if (!uploadState.sessionData) return;
 
     const {
-      generatedWallet,
-      generatedKeypair,
+      zkLoginWallet,
       walrusClient,
       costResult,
       fundingTransaction,
@@ -309,7 +383,7 @@ const WalrusUploader = () => {
         steps: [...prev.steps, createStepMessage('Checking temporary wallet balance...')],
       }));
 
-      const tempWalletBalances = await suiClient.getAllBalances({ owner: generatedWallet.address });
+      const tempWalletBalances = await suiClient.getAllBalances({ owner: zkLoginWallet.address });
       const walBalance = tempWalletBalances.find((balance) => balance.coinType === TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE);
       const suiBalance = tempWalletBalances.find((balance) => balance.coinType === '0x2::sui::SUI');
 
@@ -328,7 +402,7 @@ const WalrusUploader = () => {
         }));
 
         await new Promise((resolve) => setTimeout(resolve, 5000));
-        const retryBalances = await suiClient.getAllBalances({ owner: generatedWallet.address });
+        const retryBalances = await suiClient.getAllBalances({ owner: zkLoginWallet.address });
         const retryWalBalance = retryBalances.find((balance) => balance.coinType === TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE);
 
         if (!retryWalBalance || BigInt(retryWalBalance.totalBalance) === 0n) {
@@ -346,9 +420,9 @@ const WalrusUploader = () => {
         steps: [...prev.steps, createStepMessage('Publishing file to Walrus...')],
       }));
 
-      const publishResult = await publishToWalrus(file, generatedWallet, STORAGE_EPOCHS, walrusClient);
+      const publishResult = await publishToWalrus(file, zkLoginWallet, STORAGE_EPOCHS, walrusClient);
 
-      const newDoc = createDocumentInfo(file, generatedWallet, STORAGE_EPOCHS, costResult, publishResult, description);
+      const newDoc = createDocumentInfo(file, zkLoginWallet, STORAGE_EPOCHS, costResult, publishResult, description);
       const updatedDocuments = [...documents, newDoc];
       setDocuments(updatedDocuments);
       saveDocumentsToStorage(updatedDocuments);
@@ -375,11 +449,11 @@ const WalrusUploader = () => {
           const smartContractTx = createAddDocumentTransaction(title, description, linkToBlobId);
           
           // Set the sender and build the transaction
-          smartContractTx.setSender(generatedKeypair.toSuiAddress());
+          smartContractTx.setSender(zkLoginWallet.keypair.toSuiAddress());
           const txBytes = await smartContractTx.build({ client: suiClient });
           
           // Sign the transaction
-          const { signature } = await generatedKeypair.signTransaction(txBytes);
+          const { signature } = await zkLoginWallet.keypair.signTransaction(txBytes);
           
           // Execute the transaction
           const smartContractResult = await suiClient.executeTransactionBlock({
