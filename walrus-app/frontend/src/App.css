@@ -921,17 +921,17 @@
 
 /* zkLogin Modal Styles */
 .zklogin-modal__overlay {
-  position: center;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  inset: 125px 0 0 0;
   background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  padding: 1.5rem;
+  z-index: 1200;
   backdrop-filter: blur(4px);
+  pointer-events: all;
+  overflow-y: visible;
 }
 
 .zklogin-modal {
@@ -943,6 +943,7 @@
   max-width: 400px;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
   position: relative;
+  margin-top: clamp(4.5rem, 20vh, 10.5rem);
 }
 
 .zklogin-modal__close {
