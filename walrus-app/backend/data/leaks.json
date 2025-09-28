@@ -94,13 +94,5 @@
     "link": "https://walrus.testnet.sui.io/iiRgmQLU-tKcdR1pYzjfdOjNc0ln9PkFl2BEWnv-OdU",
     "status": "On-chain",
     "source": "sui"
-  },
-  {
-    "id": "0xd7515be8943d0751fc7c11600b9cad477d97f061b081db614379e639f0f02e93::12",
-    "title": "hey.txt",
-    "description": "ffff",
-    "link": "https://walrus.testnet.sui.io/VCHdU3RHtQVBYAI3c30jDhM8PNvrgv7OVxIb8eW6Ih4",
-    "status": "On-chain",
-    "source": "sui"
   }
 ]

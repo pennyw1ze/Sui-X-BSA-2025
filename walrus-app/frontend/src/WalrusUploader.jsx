@@ -15,7 +15,6 @@ import {
   loadDocumentsFromStorage,
   getDocumentShareUrl,
   downloadDocument,
-  suiToWalrusBlobId,
   createStepMessage,
 } from './utils/walrusUtils';
 import { createAddDocumentTransaction } from './utils/uploadToSmartcontract';
