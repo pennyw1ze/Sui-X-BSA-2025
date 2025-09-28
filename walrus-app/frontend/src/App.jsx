@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
 import ZkLoginPill from './components/ZkLoginPill';
@@ -7,6 +8,14 @@ import LeaksCarousel from './components/LeaksCarousel';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
+
+// Initialize Sui client
+const suiClient = new SuiClient({
+  url: getFullnodeUrl('testnet'),
+});
+
+// Session storage key for zkLogin accounts
+const accountDataKey = 'zklogin-demo.accounts';
 
 const showcaseLeaks = [
   {
@@ -40,6 +49,9 @@ const showcaseLeaks = [
 
 function App() {
   const [isDonateOpen, setDonateOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [zkLoginAccounts, setZkLoginAccounts] = useState([]);
+  const [balances, setBalances] = useState(new Map());
   const [leakState, setLeakState] = useState({
     entries: [],
     loading: true,
@@ -47,6 +59,52 @@ function App() {
     llmInfo: null,
   });
   const leakControllerRef = useRef(null);
+
+  // Function to check if user is logged in via zkLogin
+  const checkZkLoginStatus = useCallback(() => {
+    try {
+      const dataRaw = sessionStorage.getItem(accountDataKey);
+      if (dataRaw) {
+        const data = JSON.parse(dataRaw);
+        if (Array.isArray(data) && data.length > 0) {
+          setZkLoginAccounts(data);
+          return data;
+        }
+      }
+      setZkLoginAccounts([]);
+      return [];
+    } catch (error) {
+      console.warn('Error reading zkLogin accounts from session storage:', error);
+      setZkLoginAccounts([]);
+      return [];
+    }
+  }, []);
+
+  // Function to fetch balances for zkLogin accounts
+  const fetchBalances = useCallback(async (accounts) => {
+    if (accounts.length === 0) {
+      return;
+    }
+    
+    try {
+      const newBalances = new Map();
+      for (const account of accounts) {
+        const suiBalance = await suiClient.getBalance({
+          owner: account.userAddr,
+          coinType: '0x2::sui::SUI',
+        });
+        newBalances.set(
+          account.userAddr,
+          +suiBalance.totalBalance / 1_000_000_000
+        );
+      }
+      setBalances(prevBalances =>
+        new Map([...prevBalances, ...newBalances])
+      );
+    } catch (error) {
+      console.warn('Error fetching balances:', error);
+    }
+  }, []);
 
   const fetchLeaks = useCallback(async () => {
     if (leakControllerRef.current) {
@@ -83,6 +141,35 @@ function App() {
     }
   }, [API_BASE_URL]);
 
+  // Check zkLogin status on mount and set up polling
+  useEffect(() => {
+    const checkAndLoadBalances = () => {
+      const accounts = checkZkLoginStatus();
+      if (accounts.length > 0) {
+        fetchBalances(accounts);
+      }
+    };
+
+    // Initial check
+    checkAndLoadBalances();
+
+    // Set up polling to check for zkLogin changes every 2 seconds
+    const interval = setInterval(checkAndLoadBalances, 2000);
+
+    // Listen for storage events from other tabs
+    const handleStorageChange = (event) => {
+      if (event.key === accountDataKey) {
+        checkAndLoadBalances();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [checkZkLoginStatus, fetchBalances]);
+
   useEffect(() => {
     const revealables = document.querySelectorAll('[data-reveal="true"]');
     if (!revealables.length) return undefined;
@@ -118,7 +205,10 @@ function App() {
   }, [fetchLeaks]);
 
   const usingFallback = !leakState.entries.length;
-  const leaksToDisplay = usingFallback ? showcaseLeaks : leakState.entries;
+  const rawLeaks = usingFallback ? showcaseLeaks : leakState.entries;
+  const leaksToDisplay = rawLeaks.filter((leak) => 
+    leak.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   const carouselError = usingFallback ? null : leakState.error;
   const derivedLlmInfo = leakState.llmInfo ?? (usingFallback
     ? {
@@ -181,6 +271,32 @@ function App() {
       </header>
 
       <main>
+        {/* zkLogin Status - moved above "Start leaking now" */}
+        {zkLoginAccounts.length > 0 && (
+          <div className="zklogin-status-card">
+            <h3>🔐 zkLogin Status</h3>
+            {zkLoginAccounts.map((account, index) => {
+              const balance = balances.get(account.userAddr) || 0;
+              return (
+                <div key={account.userAddr} className="account-status">
+                  <div className="account-info">
+                    <strong>Provider:</strong> {account.provider}
+                  </div>
+                  <div className="account-info">
+                    <strong>Domain:</strong> {account.domain || 'N/A'}
+                  </div>
+                  <div className="account-info">
+                    <strong>Address:</strong> {account.userAddr.slice(0, 6)}...{account.userAddr.slice(-4)}
+                  </div>
+                  <div className="account-info balance">
+                    <strong>SUI Balance:</strong> {balance.toFixed(4)} SUI
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
         <section id="start" className="section uploader-section" data-reveal="true">
           <div className="section__header">
             <h2>Start leaking now</h2>
@@ -189,6 +305,7 @@ function App() {
               footprint on Sui. Everything happens client-side for maximum privacy.
             </p>
           </div>
+          
           <WalrusUploader />
         </section>
 
@@ -199,6 +316,28 @@ function App() {
               Explore curated leaks uploaded by the community. These cards are placeholders you can
               later connect to live Walrus blob metadata or DAO governance tooling.
             </p>
+            <div className="search-bar">
+              <div className="search-bar__wrapper">
+                <span className="search-bar__icon" aria-hidden="true">🔍</span>
+                <input
+                  type="text"
+                  className="search-bar__input"
+                  placeholder="Search leaks by title..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    className="search-bar__clear"
+                    onClick={() => setSearchTerm('')}
+                    aria-label="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
           <LeaksCarousel
             items={leaksToDisplay}

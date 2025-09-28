@@ -1,12 +1,12 @@
-# Walrus Vault - Sui x BSA Hackathon 2025
+# Sui-X-BSA-2025
 
-**Anonymous document leaking platform built on Sui blockchain and Walrus storage**
+## Members:
 
-## Team Members
-
-- **Technical University of Munich, TUM Blockchain Club**: Sparsh, Rami
-- **Sapienza Università di Roma**: Leo, Riccardo  
-- **Tor Vergata University**: Eva
+- **Sparsh**, Technical University of Munich;
+- **Rami**, Technical University of Munich;
+- **Leo**, Sapienza Università di Roma;
+- **Ricky**, Sapienza Università di Roma;
+- **Eva**, Tor Vergata University;
 
 ## Overview
 
@@ -60,6 +60,11 @@ cd walrus-app/backend
 npm install
 
 # Install Python dependencies for AI agents
+
+# Install Node.js dependencies
+npm install
+
+# Install Python dependencies for AI agents
 python -m pip install -r requirements.txt
 
 # Create environment configuration
@@ -76,8 +81,8 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
 
 # Server Configuration
 PORT=3000
-ZKLOGIN_FRONTEND_URL=http://localhost:5173
-FRONTEND_BASE_URL=http://localhost:5173
+ZKLOGIN_FRONTEND_URL=http://localhost:3000
+FRONTEND_BASE_URL=http://localhost:3000
 
 # OpenRouter AI (required for leak insights)
 OPENROUTER_API_KEY=your-openrouter-api-key
@@ -103,8 +108,6 @@ cd ../frontend
 # Install dependencies
 npm install
 
-# Create environment configuration (optional)
-cp .env.example .env
 ```
 
 **Configure environment variables** in `walrus-app/frontend/.env` (optional):

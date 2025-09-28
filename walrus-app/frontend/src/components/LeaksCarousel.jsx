@@ -178,8 +178,8 @@ const LeaksCarousel = ({
                   ))}
                 </div>
               )}
-              <a className="ghost-button" href={item.link} target="_blank" rel="noopener noreferrer">
-                {buildLinkLabel(item.link)} ↗
+              <a className="download-button" href={item.link} target="_blank" rel="noopener noreferrer">
+                Download
               </a>
               </article>
             );
