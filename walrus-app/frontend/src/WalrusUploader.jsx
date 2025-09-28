@@ -24,7 +24,7 @@ const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 const STORAGE_EPOCHS = 1;
 const SUI_COIN_TYPE = '0x2::sui::SUI';
 const GAS_BUDGET = 5_000_000;
-const SUI_WRITE_GAS_BUFFER = 12_000_000n;
+const SUI_WRITE_GAS_BUFFER = 24_000_000n;
 const MIN_GAS_RESERVE = 2_000_000n;
 
 export const TESTNET_WALRUS_PACKAGE_CONFIG = {
@@ -243,6 +243,7 @@ const WalrusUploader = () => {
       ],
       sessionData: {
         generatedWallet: walletResult.wallet,
+        generatedKeypair: walletResult.wallet.keypair,
         walrusClient,
         costResult,
         fundingTransaction: tx,
@@ -256,6 +257,7 @@ const WalrusUploader = () => {
 
     const {
       generatedWallet,
+      generatedKeypair,
       walrusClient,
       costResult,
       fundingTransaction,
@@ -343,7 +345,19 @@ const WalrusUploader = () => {
 
         try {
           const smartContractTx = createAddDocumentTransaction(title, description, linkToBlobId);
-          const smartContractResult = await signAndExecute({ transaction: smartContractTx });
+          
+          // Set the sender and build the transaction
+          smartContractTx.setSender(generatedKeypair.toSuiAddress());
+          const txBytes = await smartContractTx.build({ client: suiClient });
+          
+          // Sign the transaction
+          const { signature } = await generatedKeypair.signTransaction(txBytes);
+          
+          // Execute the transaction
+          const smartContractResult = await suiClient.executeTransactionBlock({
+            transactionBlock: txBytes,
+            signature: signature,
+          });
           
           setUploadState((prev) => ({
             ...prev,
