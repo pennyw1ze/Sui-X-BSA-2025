@@ -970,15 +970,16 @@
 /* zkLogin Modal Styles */
 .zklogin-modal__overlay {
   position: fixed;
-  inset: 0;
+  inset: 135px 0 0 0;
   background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  z-index: 1000;
+  z-index: 1200;
   backdrop-filter: blur(4px);
-  animation: fadeIn 0.2s ease;
+  pointer-events: all;
+  overflow-y: visible;
 }
 
 .zklogin-modal {
@@ -992,6 +993,7 @@
   display: grid;
   gap: 1rem;
   animation: donateModalRise 0.28s ease;
+  margin-top: clamp(4.5rem, 20vh, 10.5rem);
 }
 
 .zklogin-modal__close {
