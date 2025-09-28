@@ -39,7 +39,7 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG = {
   WAL_COIN_TYPE: '0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL',
 };
 
-const WalrusUploader = () => {
+const WalrusUploader = ({ isThickboxChecked }) => {
   const [file, setFile] = useState(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [description, setDescription] = useState('');
@@ -50,6 +50,24 @@ const WalrusUploader = () => {
     error: null,
     sessionData: null,
   });
+
+  // Helper function to get domain from zkLogin session storage
+  const getDomainFromStorage = () => {
+    try {
+      const accountDataKey = 'zklogin-demo.accounts';
+      const dataRaw = sessionStorage.getItem(accountDataKey);
+      if (dataRaw) {
+        const data = JSON.parse(dataRaw);
+        if (data && data.length > 0 && data[0].domain) {
+          return data[0].domain;
+        }
+      }
+      return '';
+    } catch (error) {
+      console.warn('Error reading domain from session storage:', error);
+      return '';
+    }
+  };
 
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
@@ -335,7 +353,15 @@ const WalrusUploader = () => {
 
       // Now publish to smart contract
       const linkToBlobId = publishResult.blobId ? `https://walrus.testnet.sui.io/${publishResult.blobId}` : '';
-      const title = file.name;
+      
+      // Create title with domain prefix if thickbox is checked
+      let title = file.name;
+      if (isThickboxChecked) {
+        const domain = getDomainFromStorage();
+        if (domain) {
+          title = `[${domain}]${file.name}`;
+        }
+      }
       
       if (linkToBlobId) {
         setUploadState((prev) => ({

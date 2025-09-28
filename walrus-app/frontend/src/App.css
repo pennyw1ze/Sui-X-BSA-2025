@@ -1163,3 +1163,78 @@
   background: rgba(45, 58, 115, 0.9);
   outline: none;
 }
+
+/* Thickbox Styles */
+.thickbox-container {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.thickbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  color: rgba(231, 255, 255, 0.88);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  max-width: 420px;
+  transition: color 0.2s ease;
+}
+
+.thickbox-label:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.thickbox-input {
+  display: none;
+}
+
+.thickbox-checkbox {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 6px;
+  border: 1px solid rgba(116, 163, 255, 0.35);
+  background: rgba(8, 14, 36, 0.6);
+  position: relative;
+  transition: all 0.2s ease;
+  margin-top: 0.1rem;
+}
+
+.thickbox-checkbox::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  border: solid rgba(116, 163, 255, 1);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.thickbox-input:checked + .thickbox-checkbox {
+  background: rgba(116, 163, 255, 0.15);
+  border-color: rgba(116, 163, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(116, 163, 255, 0.2);
+}
+
+.thickbox-input:checked + .thickbox-checkbox::after {
+  opacity: 1;
+}
+
+.thickbox-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.thickbox-domain {
+  font-size: 0.8rem;
+  color: rgba(116, 163, 255, 0.8);
+  font-style: italic;
+}

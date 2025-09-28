@@ -4,6 +4,7 @@ import logo from './assets/logo.png';
 import ZkLoginPill from './components/ZkLoginPill';
 import WalletConnectPill from './components/WalletConnectPill';
 import LeaksCarousel from './components/LeaksCarousel';
+import Thickbox from './components/Thickbox';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
@@ -41,6 +42,7 @@ const showcaseLeaks = [
 function App() {
   const [isDonateOpen, setDonateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isThickboxChecked, setIsThickboxChecked] = useState(false);
   const [leakState, setLeakState] = useState({
     entries: [],
     loading: true,
@@ -193,7 +195,11 @@ function App() {
               footprint on Sui. Everything happens client-side for maximum privacy.
             </p>
           </div>
-          <WalrusUploader />
+          <WalrusUploader isThickboxChecked={isThickboxChecked} />
+          <Thickbox 
+            isChecked={isThickboxChecked} 
+            onCheckedChange={setIsThickboxChecked}
+          />
         </section>
 
         <section id="leaks" className="section leaks-section" data-reveal="true">
