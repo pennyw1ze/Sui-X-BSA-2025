@@ -154,3 +154,7 @@ vite.config.ts.timestamp-*
 
 # Python cache
 __pycache__/
+
+# Lock files for package managers
+package-lock.json
+yarn.lock

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
 import ZkLoginPill from './components/ZkLoginPill';
+import WalletConnectPill from './components/WalletConnectPill';
 import LeaksCarousel from './components/LeaksCarousel';
 import './App.css';
 
@@ -39,7 +40,6 @@ const showcaseLeaks = [
 
 function App() {
   const [isDonateOpen, setDonateOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [leakState, setLeakState] = useState({
     entries: [],
     loading: true,
@@ -118,13 +118,7 @@ function App() {
   }, [fetchLeaks]);
 
   const usingFallback = !leakState.entries.length;
-  const rawLeaks = usingFallback ? showcaseLeaks : leakState.entries;
-  
-  // Filter leaks by search term
-  const leaksToDisplay = rawLeaks.filter((leak) => 
-    leak.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
+  const leaksToDisplay = usingFallback ? showcaseLeaks : leakState.entries;
   const carouselError = usingFallback ? null : leakState.error;
   const derivedLlmInfo = leakState.llmInfo ?? (usingFallback
     ? {
@@ -164,9 +158,12 @@ function App() {
           </button>
         </div>
         <div className="hero__nav hero__nav--right" data-reveal="true">
-          <ZkLoginPill />
+          <div className="hero__nav-pills">
+            <WalletConnectPill />
+            <ZkLoginPill />
+          </div>
         </div>
-
+        
         <div className="hero__content" data-reveal="true">
           <div className="hero__logo-wrapper">
             <img src={logo} alt="Walrus Vault" className="hero__logo" />
@@ -202,28 +199,6 @@ function App() {
               Explore curated leaks uploaded by the community. These cards are placeholders you can
               later connect to live Walrus blob metadata or DAO governance tooling.
             </p>
-            <div className="search-bar">
-              <div className="search-bar__wrapper">
-                <span className="search-bar__icon" aria-hidden="true">🔍</span>
-                <input
-                  type="text"
-                  className="search-bar__input"
-                  placeholder="Search leaks by title..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    className="search-bar__clear"
-                    onClick={() => setSearchTerm('')}
-                    aria-label="Clear search"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
           <LeaksCarousel
             items={leaksToDisplay}

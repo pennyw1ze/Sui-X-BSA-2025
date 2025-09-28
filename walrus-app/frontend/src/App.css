@@ -90,6 +90,12 @@
 .hero__nav--right { right: 7vw; }
 .hero__nav--left { left: 7vw; }
 
+.hero__nav-pills {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .hero__nav button,
 .pill-button {
   display: inline-flex;
@@ -915,7 +921,7 @@
 
 /* zkLogin Modal Styles */
 .zklogin-modal__overlay {
-  position: fixed;
+  position: center;
   top: 0;
   left: 0;
   right: 0;
