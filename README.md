@@ -60,6 +60,11 @@ cd walrus-app/backend
 npm install
 
 # Install Python dependencies for AI agents
+
+# Install Node.js dependencies
+npm install
+
+# Install Python dependencies for AI agents
 python -m pip install -r requirements.txt
 
 # Create environment configuration
