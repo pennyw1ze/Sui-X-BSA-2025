@@ -1,7 +1,7 @@
 // src/utils/walrusUtils.js
 
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { WalrusClient } from '@mysten/walrus'; // This is the only import needed from @mysten/walrus
+import { WalrusClient } from '@mysten/walrus';
 import { Buffer } from 'buffer';
 
 // Constants
@@ -18,13 +18,16 @@ export const formatFileSize = (bytes) => {
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 };
 
 export const validateFile = (file) => {
   if (!file) return { valid: false, error: 'No file selected' };
   if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-    return { valid: false, error: 'Please select a valid file (PDF, DOC, DOCX, TXT, MD, JPG, PNG, GIF)' };
+    return {
+      valid: false,
+      error: 'Please select a valid file (PDF, DOC, DOCX, TXT, MD, JPG, PNG, GIF)',
+    };
   }
   if (file.size > MAX_FILE_SIZE) {
     return { valid: false, error: 'File size must be less than 10MB' };
@@ -101,11 +104,12 @@ export const publishToWalrus = async (file, wallet, epochs, walrusClient) => {
     });
 
     const blobObject = response?.blobObject ?? response;
-    const rawBlobId = blobObject?.storage?.blob_id
-      ?? blobObject?.storage?.blobId
-      ?? blobObject?.id?.id
-      ?? blobObject?.id
-      ?? null;
+    const rawBlobId =
+      blobObject?.storage?.blob_id ??
+      blobObject?.storage?.blobId ??
+      blobObject?.id?.id ??
+      blobObject?.id ??
+      null;
     const convertedBlobId = rawBlobId ? suiToWalrusBlobId(rawBlobId) : null;
 
     return {
@@ -177,12 +181,19 @@ export const createDocumentInfo = (file, wallet, epochs, cost, blobInfo, descrip
     : null;
 
   return {
-    id: blobInfo.objectId || 'doc_' + Date.now(),
-    name: file.name, size: file.size, type: file.type,
-    uploadDate: new Date().toISOString(), epochs, cost: normalizedCost,
-    blobId: blobInfo.blobId, suiBlobId: blobInfo.suiBlobId || null,
+    id: blobInfo.objectId || `doc_${Date.now()}`,
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    uploadDate: new Date().toISOString(),
+    epochs,
+    cost: normalizedCost,
+    blobId: blobInfo.blobId,
+    suiBlobId: blobInfo.suiBlobId || null,
     storageId: blobInfo.storageId || null,
-    walletAddress: wallet.address, real: blobInfo.real,
+    walletAddress: wallet.address,
+    real: blobInfo.real,
+    recovered: Boolean(blobInfo.recovered),
     description,
   };
 };
@@ -240,5 +251,5 @@ export const downloadDocument = async (doc) => {
 export const createStepMessage = (message) => ({
   id: Date.now() + Math.random(),
   message,
-  timestamp: new Date().toLocaleTimeString()
+  timestamp: new Date().toLocaleTimeString(),
 });

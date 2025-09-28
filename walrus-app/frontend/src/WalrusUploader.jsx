@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { Transaction } from "@mysten/sui/transactions";
+import { Transaction } from '@mysten/sui/transactions';
 import { parseStructTag } from '@mysten/sui/utils';
-import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
 import {
   formatFileSize,
   validateFile,
@@ -19,9 +19,12 @@ import {
   createStepMessage,
 } from './utils/walrusUtils';
 
-// Sui Testnet client
 const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
 const STORAGE_EPOCHS = 1;
+const SUI_COIN_TYPE = '0x2::sui::SUI';
+const GAS_BUDGET = 5_000_000;
+const SUI_WRITE_GAS_BUFFER = 12_000_000n;
+const MIN_GAS_RESERVE = 2_000_000n;
 
 export const TESTNET_WALRUS_PACKAGE_CONFIG = {
   systemObjectId: '0x6c2547cbbc38025cf3adac45f63cb0a8d12ecf777cdc75a4971612bf97fdf6af',
@@ -42,45 +45,49 @@ const WalrusUploader = () => {
   const [documents, setDocuments] = useState([]);
   const [uploadState, setUploadState] = useState({
     steps: [],
-    currentStep: 'idle', // idle, preparing, ready_to_fund, signing, publishing, completed, error
+    currentStep: 'idle',
     error: null,
-    sessionData: null, // To store temporary data like the new wallet and transaction
+    sessionData: null,
   });
 
   const account = useCurrentAccount();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   useEffect(() => {
-    // Load previously uploaded documents from local storage on component mount
     const loaded = loadDocumentsFromStorage();
     if (loaded.success) {
       setDocuments(loaded.documents);
     }
   }, []);
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      const validation = validateFile(selectedFile);
-      if (validation.valid) {
-        setFile(selectedFile);
-        // Reset state when a new file is selected
-        setUploadState({ steps: [], currentStep: 'idle', error: null, sessionData: null });
-      } else {
-        setUploadState((prev) => ({ ...prev, error: validation.error }));
-      }
-    }
+  const resetForm = () => {
+    setDescription('');
+    setFile(null);
+    setFileInputKey((key) => key + 1);
   };
 
-  // Step 1: Prepare the upload by calculating cost and creating a funding transaction
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files[0];
+    if (!selectedFile) return;
+
+    const validation = validateFile(selectedFile);
+    if (!validation.valid) {
+      setUploadState((prev) => ({ ...prev, error: validation.error }));
+      return;
+    }
+
+    setFile(selectedFile);
+    setUploadState({ steps: [], currentStep: 'idle', error: null, sessionData: null });
+  };
+
   const prepareUpload = async () => {
     if (!file || !account) {
-      setUploadState(prev => ({ ...prev, error: 'Please connect your wallet and select a file.' }));
+      setUploadState((prev) => ({ ...prev, error: 'Please connect your wallet and select a file.' }));
       return;
     }
 
     if (!description.trim()) {
-      setUploadState(prev => ({ ...prev, error: 'Please add a short description before publishing.' }));
+      setUploadState((prev) => ({ ...prev, error: 'Please add a short description before publishing.' }));
       return;
     }
 
@@ -93,32 +100,47 @@ const WalrusUploader = () => {
 
     const walrusClientResult = initializeWalrusClient(suiClient);
     if (!walrusClientResult.success) {
-      setUploadState(prev => ({ ...prev, currentStep: 'error', error: 'Failed to initialize Walrus client.' }));
+      setUploadState((prev) => ({ ...prev, currentStep: 'error', error: 'Failed to initialize Walrus client.' }));
       return;
     }
-    const walrusClient = walrusClientResult.client;
 
+    const walrusClient = walrusClientResult.client;
     const costResult = await calculateStorageCost(file, STORAGE_EPOCHS, walrusClient);
     if (!costResult.success) {
-      setUploadState(prev => ({ ...prev, currentStep: 'error', error: 'Failed to calculate storage cost.' }));
+      setUploadState((prev) => ({ ...prev, currentStep: 'error', error: 'Failed to calculate storage cost.' }));
       return;
     }
 
     const walletResult = generateNewWallet();
     if (!walletResult.success) {
-      setUploadState(prev => ({ ...prev, currentStep: 'error', error: 'Failed to generate new wallet.' }));
+      setUploadState((prev) => ({ ...prev, currentStep: 'error', error: 'Failed to generate new wallet.' }));
       return;
     }
 
     const tx = new Transaction();
     let requiresExchange = false;
     const requiredWalAmount = costResult.amount;
-    const SUI_WRITE_GAS_BUFFER = 10_000_000n;
 
     try {
       const balances = await suiClient.getAllBalances({ owner: account.address });
       const walBalance = balances.find((balance) => balance.coinType === TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE);
       const walAmount = walBalance ? BigInt(walBalance.totalBalance) : 0n;
+
+      const suiCoins = await suiClient.getCoins({ owner: account.address, coinType: SUI_COIN_TYPE });
+      if (!suiCoins.data || suiCoins.data.length === 0) {
+        throw new Error('No SUI coins found to fund WAL exchange. Top up your wallet and try again.');
+      }
+
+      const [primarySuiCoin] = [...suiCoins.data].sort((a, b) => BigInt(b.balance) - BigInt(a.balance));
+
+      const primarySuiBalance = BigInt(primarySuiCoin.balance);
+      const totalSuiForTransfers = requiredWalAmount + SUI_WRITE_GAS_BUFFER;
+      const totalSuiNeeded = totalSuiForTransfers + BigInt(GAS_BUDGET) + MIN_GAS_RESERVE;
+
+      if (primarySuiBalance <= totalSuiNeeded) {
+        const neededDisplay = (Number(totalSuiNeeded) / 1_000_000_000).toFixed(4);
+        throw new Error(`Not enough SUI to cover WAL funding. Ensure your largest SUI coin holds at least ${neededDisplay} SUI.`);
+      }
 
       if (walAmount < requiredWalAmount) {
         requiresExchange = true;
@@ -127,8 +149,10 @@ const WalrusUploader = () => {
           steps: [...prev.steps, createStepMessage('Insufficient WAL balance detected. Preparing SUI → WAL exchange...')],
         }));
 
-        const totalSuiToExchange = requiredWalAmount;
-        const [suiToExchange] = tx.splitCoins(tx.gas, [tx.pure('u64', totalSuiToExchange.toString())]);
+        const [suiToExchange] = tx.splitCoins(
+          tx.gas,
+          [tx.pure('u64', requiredWalAmount.toString())],
+        );
 
         const exchangeId = TESTNET_WALRUS_PACKAGE_CONFIG.exchangeIds[0];
         const exchangeObject = await suiClient.getObject({
@@ -145,14 +169,14 @@ const WalrusUploader = () => {
           package: exchangePackageId,
           module: 'wal_exchange',
           function: 'exchange_all_for_wal',
-          arguments: [
-            tx.object(exchangeId),
-            suiToExchange,
-          ],
+          arguments: [tx.object(exchangeId), suiToExchange],
         });
 
         tx.transferObjects([walCoin], tx.pure('address', walletResult.wallet.address));
-        const [suiGas] = tx.splitCoins(tx.gas, [tx.pure('u64', SUI_WRITE_GAS_BUFFER.toString())]);
+        const [suiGas] = tx.splitCoins(
+          tx.gas,
+          [tx.pure('u64', SUI_WRITE_GAS_BUFFER.toString())],
+        );
         tx.transferObjects([suiGas], tx.pure('address', walletResult.wallet.address));
       } else {
         setUploadState((prev) => ({
@@ -160,7 +184,10 @@ const WalrusUploader = () => {
           steps: [...prev.steps, createStepMessage(`Sufficient WAL balance found. Preparing direct WAL transfer of ${requiredWalAmount.toString()} WAL.`)],
         }));
 
-        const [suiGas] = tx.splitCoins(tx.gas, [tx.pure('u64', SUI_WRITE_GAS_BUFFER.toString())]);
+        const [suiGas] = tx.splitCoins(
+          tx.gas,
+          [tx.pure('u64', SUI_WRITE_GAS_BUFFER.toString())],
+        );
         const walCoins = await suiClient.getCoins({
           owner: account.address,
           coinType: TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE,
@@ -170,21 +197,29 @@ const WalrusUploader = () => {
           throw new Error('No WAL coins found in wallet, but balance check succeeded.');
         }
 
-        const primaryWalCoin = walCoins.data[0].coinObjectId;
-        if (walCoins.data.length > 1) {
-          const otherWalCoins = walCoins.data.slice(1).map((coin) => tx.object(coin.coinObjectId));
-          tx.mergeCoins(tx.object(primaryWalCoin), otherWalCoins);
+        const sortedWalCoins = [...walCoins.data].sort((a, b) => BigInt(b.balance) - BigInt(a.balance));
+        const totalWalBalance = sortedWalCoins.reduce((sum, coin) => sum + BigInt(coin.balance), 0n);
+        if (totalWalBalance < requiredWalAmount) {
+          throw new Error('Total WAL balance is below the storage requirement. Top up WAL and try again.');
+        }
+
+        const primaryWalCoinId = sortedWalCoins[0].coinObjectId;
+
+        if (sortedWalCoins.length > 1) {
+          setUploadState((prev) => ({
+            ...prev,
+            steps: [...prev.steps, createStepMessage('Merging WAL coins to cover storage cost...')],
+          }));
+
+          const otherWalCoins = sortedWalCoins.slice(1).map((coin) => tx.object(coin.coinObjectId));
+          tx.mergeCoins(tx.object(primaryWalCoinId), otherWalCoins);
         }
 
         const [requiredWalCoin] = tx.splitCoins(
-          tx.object(primaryWalCoin),
-          [tx.pure('u64', requiredWalAmount.toString())]
+          tx.object(primaryWalCoinId),
+          [tx.pure('u64', requiredWalAmount.toString())],
         );
-
-        tx.transferObjects([
-          requiredWalCoin,
-          suiGas,
-        ], tx.pure('address', walletResult.wallet.address));
+        tx.transferObjects([requiredWalCoin, suiGas], tx.pure('address', walletResult.wallet.address));
       }
     } catch (error) {
       setUploadState((prev) => ({
@@ -195,9 +230,9 @@ const WalrusUploader = () => {
       return;
     }
 
-    tx.setGasBudget(10_000_000);
+  tx.setGasBudget(GAS_BUDGET);
 
-    setUploadState(prev => ({
+    setUploadState((prev) => ({
       ...prev,
       currentStep: 'ready_to_fund',
       steps: [
@@ -211,11 +246,10 @@ const WalrusUploader = () => {
         costResult,
         fundingTransaction: tx,
         requiresExchange,
-      }
+      },
     }));
   };
 
-  // Step 2: User signs the funding transaction, then we publish the file
   const handleFundAndPublish = async () => {
     if (!uploadState.sessionData) return;
 
@@ -231,7 +265,10 @@ const WalrusUploader = () => {
       setUploadState((prev) => ({
         ...prev,
         currentStep: 'signing',
-        steps: [...prev.steps, createStepMessage(`Please approve the ${requiresExchange ? 'exchange and transfer' : 'transfer'} transaction in your wallet...`)],
+        steps: [
+          ...prev.steps,
+          createStepMessage(`Please approve the ${requiresExchange ? 'exchange and transfer' : 'transfer'} transaction in your wallet...`),
+        ],
       }));
 
       await signAndExecute({ transaction: fundingTransaction });
@@ -268,7 +305,6 @@ const WalrusUploader = () => {
         }));
 
         await new Promise((resolve) => setTimeout(resolve, 5000));
-
         const retryBalances = await suiClient.getAllBalances({ owner: generatedWallet.address });
         const retryWalBalance = retryBalances.find((balance) => balance.coinType === TESTNET_WALRUS_PACKAGE_CONFIG.WAL_COIN_TYPE);
 
@@ -287,53 +323,68 @@ const WalrusUploader = () => {
         steps: [...prev.steps, createStepMessage('Publishing file to Walrus...')],
       }));
 
-  const publishResult = await publishToWalrus(file, generatedWallet, STORAGE_EPOCHS, walrusClient);
+      const publishResult = await publishToWalrus(file, generatedWallet, STORAGE_EPOCHS, walrusClient);
 
       if (!publishResult.success) {
+        setUploadState((prev) => ({
+          ...prev,
+          steps: [...prev.steps, createStepMessage(`Publish failed: ${publishResult.error}`)],
+        }));
+
         const blobs = await suiClient.getOwnedObjects({
           owner: generatedWallet.address,
-          filter: {
-            StructType: '0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob',
-          },
+          filter: { StructType: '0xd84704c17fc870b8764832c535aa6b11f21a95cd6f5bb38a9b07d2cf42220c66::blob::Blob' },
           options: { showType: true, showContent: true },
         });
 
         if (blobs.data && blobs.data.length > 0) {
           const lastBlob = blobs.data[blobs.data.length - 1];
-          const blobId = lastBlob?.data?.content?.fields?.blob_id
-            ? suiToWalrusBlobId(lastBlob.data.content.fields.blob_id)
-            : null;
+          const rawBlobId = lastBlob?.data?.content?.fields?.blob_id;
+          const blobId = rawBlobId ? suiToWalrusBlobId(rawBlobId) : null;
 
-          if (!blobId) {
-            throw new Error('Failed to recover blob ID from Walrus response.');
+          if (blobId) {
+            const alreadyTracked = documents.some(
+              (doc) => (blobId && doc.blobId === blobId) || (rawBlobId && doc.suiBlobId === String(rawBlobId)),
+            );
+
+            if (alreadyTracked) {
+              throw new Error('Publish failed and no new Walrus blob was created. Increase your SUI balance and try again.');
+            }
+
+            const recoveredDoc = createDocumentInfo(
+              file,
+              generatedWallet,
+              STORAGE_EPOCHS,
+              costResult,
+              {
+                success: true,
+                blobId,
+                suiBlobId: rawBlobId,
+                storageId: null,
+                objectId: lastBlob?.data?.content?.fields?.id?.id ?? null,
+                real: true,
+                recovered: true,
+              },
+              description,
+            );
+
+            const updatedDocuments = [...documents, recoveredDoc];
+            setDocuments(updatedDocuments);
+            saveDocumentsToStorage(updatedDocuments);
+
+            setUploadState((prev) => ({
+              ...prev,
+              currentStep: 'completed',
+              steps: [...prev.steps, createStepMessage(`File published (recovered)! Blob ID: ${blobId}`)],
+            }));
+            resetForm();
+            return;
           }
-
-          const recoveredDoc = createDocumentInfo(file, generatedWallet, STORAGE_EPOCHS, costResult, {
-            success: true,
-            blobId,
-            storageId: null,
-            objectId: lastBlob?.data?.content?.fields?.id?.id ?? null,
-            suiBlobId: lastBlob?.data?.content?.fields?.blob_id,
-            real: true,
-          }, description);
-
-          const updatedDocuments = [...documents, recoveredDoc];
-          setDocuments(updatedDocuments);
-          saveDocumentsToStorage(updatedDocuments);
-
-          setUploadState((prev) => ({
-            ...prev,
-            currentStep: 'completed',
-            steps: [...prev.steps, createStepMessage(`File published (recovered)! Blob ID: ${blobId}`)],
-          }));
-          setDescription('');
-          setFile(null);
-          setFileInputKey((key) => key + 1);
-          return;
         }
 
         throw new Error(publishResult.error || 'Failed to publish and no blob found in temporary wallet.');
       }
+
       const newDoc = createDocumentInfo(file, generatedWallet, STORAGE_EPOCHS, costResult, publishResult, description);
       const updatedDocuments = [...documents, newDoc];
       setDocuments(updatedDocuments);
@@ -344,9 +395,7 @@ const WalrusUploader = () => {
         currentStep: 'completed',
         steps: [...prev.steps, createStepMessage(`File published successfully! Blob ID: ${publishResult.blobId}`)],
       }));
-      setDescription('');
-      setFile(null);
-      setFileInputKey((key) => key + 1);
+      resetForm();
     } catch (error) {
       setUploadState((prev) => ({
         ...prev,
@@ -356,13 +405,18 @@ const WalrusUploader = () => {
     }
   };
 
-  const isButtonDisabled = !file || !account || !description.trim() || ['preparing', 'signing', 'publishing'].includes(uploadState.currentStep);
+  const isButtonDisabled =
+    !file ||
+    !account ||
+    !description.trim() ||
+    ['preparing', 'signing', 'publishing'].includes(uploadState.currentStep);
 
   return (
     <div className="walrus-uploader">
       <div className="upload-box">
         <input key={fileInputKey} type="file" onChange={handleFileChange} />
         {file && <p>Selected file: {file.name} ({formatFileSize(file.size)})</p>}
+
         <label className="description-label">
           Brief Description
           <textarea
@@ -375,13 +429,13 @@ const WalrusUploader = () => {
         <p className="storage-note">Files are currently pinned for a single Walrus epoch; renewal logic will land soon.</p>
 
         {uploadState.currentStep !== 'ready_to_fund' ? (
-            <button onClick={prepareUpload} disabled={isButtonDisabled}>
-              Prepare Upload
-            </button>
+          <button onClick={prepareUpload} disabled={isButtonDisabled}>
+            Prepare Upload
+          </button>
         ) : (
-            <button onClick={handleFundAndPublish} disabled={isButtonDisabled}>
-              {uploadState.sessionData?.requiresExchange ? 'Approve SUI → WAL Swap & Publish' : 'Approve Transfer & Publish'}
-            </button>
+          <button onClick={handleFundAndPublish} disabled={isButtonDisabled}>
+            {uploadState.sessionData?.requiresExchange ? 'Approve SUI → WAL Swap & Publish' : 'Approve Transfer & Publish'}
+          </button>
         )}
 
         {uploadState.error && <p className="error">{uploadState.error}</p>}
@@ -390,7 +444,7 @@ const WalrusUploader = () => {
       {uploadState.steps.length > 0 && (
         <div className="status-box">
           <h3>Upload Status</h3>
-          {uploadState.steps.map(step => (
+          {uploadState.steps.map((step) => (
             <p key={step.id}>[{step.timestamp}] {step.message}</p>
           ))}
         </div>
@@ -398,27 +452,30 @@ const WalrusUploader = () => {
 
       <div className="document-list">
         <h3>Uploaded Documents</h3>
-        <p className="document-hint">These entries are saved locally for your browser session and aren&rsquo;t yet part of the on-chain leak feed.</p>
-        {documents.map(doc => {
-            const shareUrl = getDocumentShareUrl(doc.blobId, doc.suiBlobId);
-            return (
-              <div key={doc.id} className="document-item">
-                  <p><strong>Name:</strong> {doc.name}</p>
-                  <p><strong>Size:</strong> {formatFileSize(doc.size)}</p>
-                  {doc.description && <p><strong>Description:</strong> {doc.description}</p>}
-                  <p><strong>Blob ID:</strong> {doc.blobId}</p>
-                  <a
-                    href={shareUrl ?? '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-disabled={!shareUrl}
-                    className={!shareUrl ? 'disabled-link' : undefined}
-                  >
-                    View on Walrus
-                  </a>
-                  <button onClick={() => downloadDocument(doc)}>Download</button>
-              </div>
-            );
+        <p className="document-hint">These entries are saved locally for your browser session and aren’t yet part of the on-chain leak feed.</p>
+        {documents.map((doc) => {
+          const shareUrl = getDocumentShareUrl(doc.blobId, doc.suiBlobId);
+          return (
+            <div key={doc.id} className="document-item">
+              <p><strong>Name:</strong> {doc.name}</p>
+              <p><strong>Size:</strong> {formatFileSize(doc.size)}</p>
+              {doc.description && <p><strong>Description:</strong> {doc.description}</p>}
+              <p><strong>Blob ID:</strong> {doc.blobId}</p>
+              {doc.recovered && (
+                <p className="document-recovered">Transaction failed on-chain; blob recovered from existing wallet state.</p>
+              )}
+              <a
+                href={shareUrl ?? '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-disabled={!shareUrl}
+                className={!shareUrl ? 'disabled-link' : undefined}
+              >
+                View on Walrus
+              </a>
+              <button onClick={() => downloadDocument(doc)}>Download</button>
+            </div>
+          );
         })}
       </div>
     </div>

@@ -596,10 +596,35 @@
   padding: 0.65rem 1.6rem;
 }
 
+.walrus-uploader .document-hint {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: rgba(200, 218, 255, 0.65);
+}
+
+.walrus-uploader .document-item a {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: #00b894;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.walrus-uploader .document-item a:hover {
+  color: #2ecc9b;
+  text-decoration: underline;
+}
+
 .walrus-uploader .document-item a.disabled-link {
   pointer-events: none;
   opacity: 0.6;
   text-decoration: none;
+}
+
+.walrus-uploader .document-recovered {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: #ffcf6d;
 }
 
 .leaks-section {
