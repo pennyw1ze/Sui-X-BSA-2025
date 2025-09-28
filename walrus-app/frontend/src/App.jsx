@@ -1,36 +1,86 @@
-import { useEffect, useState } from 'react';
-import { ConnectButton } from "@mysten/dapp-kit";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
-import suiMark from './assets/sui_logo_white.svg';
+import WalletConnectPill from './components/WalletConnectPill';
+import LeaksCarousel from './components/LeaksCarousel';
 import './App.css';
+
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
 const showcaseLeaks = [
   {
     id: 'leak-1',
     title: 'Sui Ecosystem Report 2025',
-    summary: 'Anonymously uploaded research on validator performance and community grants.',
+    description: 'Anonymously uploaded research on validator performance and community grants with anonymised validator metrics and grant disbursement figures.',
+    link: 'https://example.com/sui-ecosystem-report',
     tags: ['Research', 'Community'],
     status: 'Verified',
+    insight: 'Highlights validator transparency gaps and proposes safeguards for grant allocations.',
   },
   {
     id: 'leak-2',
     title: 'Governance Proposal Draft',
-    summary: 'Early look at an unreleased governance proposal targeting fee reforms.',
+    description: 'Early look at an unreleased governance proposal targeting fee reforms across core DeFi apps in the Sui ecosystem.',
+    link: 'https://example.com/governance-proposal-draft',
     tags: ['Governance', 'Draft'],
     status: 'Awaiting Review',
+    insight: 'Signals fee structure shifts that could impact smaller validators and DAO treasuries.',
   },
   {
     id: 'leak-3',
     title: 'Cross-chain Integration Notes',
-    summary: 'Technical design notes for a cross-chain bridge leveraging Walrus storage.',
+    description: 'Technical design notes for a cross-chain bridge leveraging Walrus storage, including validator staking assumptions and failure scenarios.',
+    link: 'https://example.com/cross-chain-notes',
     tags: ['Technical', 'Bridge'],
     status: 'New',
+    insight: 'Early-stage bridge architecture with identified failure modes that need wider review.',
   },
 ];
 
 function App() {
   const [isDonateOpen, setDonateOpen] = useState(false);
+  const [leakState, setLeakState] = useState({
+    entries: [],
+    loading: true,
+    error: null,
+    llmInfo: null,
+  });
+  const leakControllerRef = useRef(null);
+
+  const fetchLeaks = useCallback(async () => {
+    if (leakControllerRef.current) {
+      leakControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    leakControllerRef.current = controller;
+
+    setLeakState((prev) => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/leaks`, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+      setLeakState({
+        entries: Array.isArray(payload.leaks) ? payload.leaks : [],
+        loading: false,
+        error: null,
+        llmInfo: payload.llm ?? null,
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+
+      setLeakState({
+        entries: [],
+        loading: false,
+        error: error.message,
+        llmInfo: null,
+      });
+    }
+  }, [API_BASE_URL]);
 
   useEffect(() => {
     const revealables = document.querySelectorAll('[data-reveal="true"]');
@@ -55,6 +105,28 @@ function App() {
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    fetchLeaks();
+
+    return () => {
+      if (leakControllerRef.current) {
+        leakControllerRef.current.abort();
+      }
+    };
+  }, [fetchLeaks]);
+
+  const usingFallback = !leakState.entries.length;
+  const leaksToDisplay = usingFallback ? showcaseLeaks : leakState.entries;
+  const carouselError = usingFallback ? null : leakState.error;
+  const derivedLlmInfo = leakState.llmInfo ?? (usingFallback
+    ? {
+        enabled: false,
+        reason: leakState.error
+          ? `Showing curated leaks while live data sync fails: ${leakState.error}`
+          : 'Awaiting live Walrus submissions.',
+      }
+    : null);
 
   return (
     <div className="app">
@@ -85,20 +157,7 @@ function App() {
           </button>
         </div>
         <div className="hero__nav hero__nav--right" data-reveal="true">
-          <ConnectButton
-            className="pill-button pill-button--connect"
-            connectText={(
-              <>
-                <span className="pill-button__icon pill-button__icon--connect" aria-hidden="true">
-                  <img src={suiMark} alt="" />
-                </span>
-                <span className="pill-button__label">
-                  <strong>Connect wallet</strong>
-                  <small>Secure session</small>
-                </span>
-              </>
-            )}
-          />
+          <WalletConnectPill />
         </div>
 
         <div className="hero__content" data-reveal="true">
@@ -137,32 +196,13 @@ function App() {
               later connect to live Walrus blob metadata or DAO governance tooling.
             </p>
           </div>
-          <div className="leak-grid">
-            {showcaseLeaks.map((leak, index) => (
-              <article
-                key={leak.id}
-                className="leak-card"
-                data-reveal="true"
-                style={{ transitionDelay: `${index * 80}ms` }}
-              >
-                <div className="leak-card__status" data-status={leak.status}>
-                  {leak.status}
-                </div>
-                <h3>{leak.title}</h3>
-                <p>{leak.summary}</p>
-                <div className="leak-card__tags">
-                  {leak.tags.map((tag) => (
-                    <span key={`${leak.id}-${tag}`} className="tag">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-                <button type="button" className="ghost-button">
-                  View details
-                </button>
-              </article>
-            ))}
-          </div>
+          <LeaksCarousel
+            items={leaksToDisplay}
+            loading={leakState.loading}
+            error={carouselError}
+            onRetry={fetchLeaks}
+            llmInfo={derivedLlmInfo}
+          />
         </section>
       </main>
 

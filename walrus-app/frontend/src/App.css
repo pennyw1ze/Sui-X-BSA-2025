@@ -159,11 +159,65 @@
   border-color: rgba(155, 182, 255, 0.55);
 }
 
+.pill-button--connect {
+  position: relative;
+  min-width: 0;
+  padding-right: 2.1rem;
+}
+
+.pill-button--connect::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 58%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.pill-button--connect:hover::after,
+.pill-button--connect:focus-visible::after {
+  opacity: 1;
+}
+
+.pill-button--connected {
+  background: linear-gradient(135deg, #5a63ff, #7f74ff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 18px 36px rgba(82, 120, 255, 0.5);
+}
+
+.pill-button--connected small {
+  color: rgba(210, 240, 255, 0.9);
+}
+
 .pill-button--donate:hover,
 .pill-button--donate:focus-visible,
 .pill-button--connect:hover,
 .pill-button--connect:focus-visible {
   border-color: rgba(189, 210, 255, 0.8);
+}
+
+[data-dapp-kit] .connect-button--pill,
+[data-dapp-kit].connect-button--pill,
+[data-dapp-kit] .AccountDropdownMenu_connectedAccount__div2ql0 {
+  border-radius: 999px !important;
+  border: 1px solid rgba(116, 163, 255, 0.5) !important;
+  background: linear-gradient(135deg, #655dff, #8b6ff6) !important;
+  color: #ffffff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 15px 32px rgba(79, 117, 255, 0.38) !important;
+  padding: 0.75rem 1.75rem !important;
+  gap: 0.65rem !important;
+  text-transform: none !important;
+}
+
+[data-dapp-kit] .AccountDropdownMenu_connectedAccount__div2ql0 svg {
+  display: none;
+}
+
+[data-dapp-kit] .AccountDropdownMenu_connectedAccount__div2ql0:hover,
+[data-dapp-kit] .AccountDropdownMenu_connectedAccount__div2ql0:focus-visible {
+  border-color: rgba(189, 210, 255, 0.8) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 18px 36px rgba(79, 117, 255, 0.48) !important;
 }
 
 .pill-button__icon {
@@ -524,10 +578,150 @@
   background: rgba(6, 10, 24, 0.85);
 }
 
-.leak-grid {
+.leaks-carousel {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.75rem;
+  gap: 1.5rem;
+}
+
+.leaks-carousel__controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.carousel-control {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(143, 175, 255, 0.45);
+  background: rgba(27, 36, 74, 0.85);
+  color: rgba(219, 235, 255, 0.92);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.carousel-control:hover,
+.carousel-control:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(189, 210, 255, 0.75);
+  box-shadow: 0 14px 28px rgba(43, 58, 120, 0.35);
+}
+
+.leaks-carousel__meta {
+  min-height: 1.2rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(192, 221, 255, 0.55);
+}
+
+.leaks-carousel__viewport {
+  overflow: hidden;
+}
+
+.leaks-carousel__track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, calc((100% - 3rem) / 3));
+  gap: 1.5rem;
+  padding-bottom: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(116, 163, 255, 0.45) rgba(16, 24, 52, 0.7);
+  transition: transform 0.4s ease;
+}
+
+.leaks-carousel__track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.leaks-carousel__track::-webkit-scrollbar-track {
+  background: rgba(16, 24, 52, 0.7);
+  border-radius: 999px;
+}
+
+.leaks-carousel__track::-webkit-scrollbar-thumb {
+  background: rgba(116, 163, 255, 0.55);
+  border-radius: 999px;
+}
+
+.leaks-carousel__track > * {
+  scroll-snap-align: start;
+}
+
+.leaks-carousel--loading,
+.leaks-carousel--error,
+.leaks-carousel--empty {
+  background: rgba(16, 24, 52, 0.85);
+  border-radius: 24px;
+  border: 1px solid rgba(87, 108, 199, 0.3);
+  padding: 2rem;
+  text-align: center;
+  color: rgba(210, 243, 255, 0.85);
+}
+
+.leak-card[data-carousel-card] {
+  min-height: 100%;
+}
+
+.leak-card__insight {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(227, 242, 255, 0.92);
+  border-left: 3px solid rgba(116, 163, 255, 0.45);
+  padding-left: 0.75rem;
+}
+
+@keyframes leakCardFloat {
+  0% {
+    transform: translate3d(0, 18px, 0) scale(0.98);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translate3d(-6px, -6px, 0) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(-2px, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+.leaks-carousel__track .is-floating {
+  animation: leakCardFloat 0.6s ease forwards;
+  animation-delay: var(--float-delay, 0ms);
+}
+
+.leaks-carousel__note {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.leaks-carousel__note::before {
+  content: 'ℹ️';
+  font-size: 0.85rem;
+}
+
+@media (max-width: 960px) {
+  .leaks-carousel__track {
+    grid-auto-columns: minmax(240px, calc((100% - 1.5rem) / 2));
+  }
+}
+
+@media (max-width: 640px) {
+  .leaks-carousel__controls {
+    justify-content: space-between;
+  }
+
+  .leaks-carousel__track {
+    grid-auto-columns: minmax(220px, 80%);
+  }
 }
 
 .leak-card {

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "leak-1",
+    "title": "Sui Ecosystem Report 2025",
+    "description": "Anonymously uploaded research on validator performance and community grants with anonymised validator metrics and grant disbursement figures.",
+    "link": "https://example.com/sui-ecosystem-report",
+    "status": "Verified"
+  },
+  {
+    "id": "leak-2",
+    "title": "Governance Proposal Draft",
+    "description": "Early look at an unreleased governance proposal targeting fee reforms across core DeFi apps in the Sui ecosystem.",
+    "link": "https://example.com/governance-proposal-draft",
+    "status": "Awaiting Review"
+  },
+  {
+    "id": "leak-3",
+    "title": "Cross-chain Integration Notes",
+    "description": "Technical design notes for a cross-chain bridge leveraging Walrus storage, including validator staking assumptions and failure scenarios.",
+    "link": "https://example.com/cross-chain-notes",
+    "status": "New"
+  },
+  {
+    "id": "leak-4",
+    "title": "Governance Proposal Draft",
+    "description": "Early look at an unreleased governance proposal targeting fee reforms across core DeFi apps in the Sui ecosystem.",
+    "link": "https://example.com/governance-proposal-draft",
+    "status": "Awaiting Review"
+  },
+  {
+    "id": "leak-5",
+    "title": "Cross-chain Integration Notes",
+    "description": "Technical design notes for a cross-chain bridge leveraging Walrus storage, including validator staking assumptions and failure scenarios.",
+    "link": "https://example.com/cross-chain-notes",
+    "status": "New"
+  }
+]
