@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import WalrusUploader from './WalrusUploader';
 import logo from './assets/logo.png';
-import WalletConnectPill from './components/WalletConnectPill';
+import ZkLoginPill from './components/ZkLoginPill';
 import LeaksCarousel from './components/LeaksCarousel';
 import './App.css';
 
@@ -157,7 +157,7 @@ function App() {
           </button>
         </div>
         <div className="hero__nav hero__nav--right" data-reveal="true">
-          <WalletConnectPill />
+          <ZkLoginPill />
         </div>
 
         <div className="hero__content" data-reveal="true">
