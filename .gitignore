@@ -158,3 +158,5 @@ __pycache__/
 # Lock files for package managers
 package-lock.json
 yarn.lock
+
+leaks.json
