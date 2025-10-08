@@ -160,3 +160,9 @@ package-lock.json
 yarn.lock
 
 leaks.json
+
+# Cut out useless files from zk folder
+*.ptau
+*.zkey
+verification_key.json
+
